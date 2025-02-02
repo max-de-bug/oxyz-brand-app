@@ -1,3 +1,4 @@
+"use client";
 import { useEffect, useRef, useState } from "react";
 
 interface ImageEditorProps {
@@ -50,7 +51,7 @@ const ImageEditor = ({
   };
 
   return (
-    <div>
+    <div className="bg-slate-500">
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}

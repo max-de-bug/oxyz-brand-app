@@ -1,3 +1,4 @@
+"use client";
 import { useState } from "react";
 import LogoSelector from "./imageActions/logoSelector";
 import ImageUploader from "./imageActions/imageUploader";
@@ -44,9 +45,9 @@ const MainComponent = () => {
     <main className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Image Uploader with Logo</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <ImageUploader onUpload={handleImageUpload} />
+        <div className="flex justify-between gap-8">
           <LogoSelector onSelect={handleLogoSelect} />
+          <ImageUploader onUpload={handleImageUpload} />
         </div>
         <div>
           {uploadedImage && selectedLogo && (

@@ -6,11 +6,11 @@ const LogoSelector = ({ onSelect }: LogoSelectorProps) => {
   const logos = ["/logos/logo1.png", "logos/logo2.png", "logos/logo3.png"];
 
   return (
-    <div className="mb-4">
+    <div className="mb-4 w-2/4 flex flex-col">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Select Logo
       </label>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="flex flex-col gap-2">
         {logos.map((logo, index) => (
           <button
             key={index}
