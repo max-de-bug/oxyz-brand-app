@@ -3,6 +3,7 @@ import { useState } from "react";
 import LogoSelector from "./imageActions/logoSelector";
 import ImageUploader from "./imageActions/imageUploader";
 import ImageEditor from "./imageActions/imageEditor";
+import PhotoSelector from "./photoSelector";
 
 const MainComponent = () => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -41,6 +42,10 @@ const MainComponent = () => {
       setProcessedImage(URL.createObjectURL(blob));
     }
   };
+
+  const handlePhotoSelect = (imageUrl: string) => {
+    setUploadedImage(imageUrl);
+  };
   return (
     <main className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Image Uploader with Logo</h1>
@@ -48,6 +53,7 @@ const MainComponent = () => {
         <div className="flex justify-between gap-8">
           <LogoSelector onSelect={handleLogoSelect} />
           <ImageUploader onUpload={handleImageUpload} />
+          <PhotoSelector onSelect={handlePhotoSelect} />{" "}
         </div>
         <div>
           {uploadedImage && selectedLogo && (
