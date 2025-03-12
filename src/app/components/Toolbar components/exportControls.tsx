@@ -17,18 +17,11 @@ const ExportControls = () => {
     setExportError(null);
     setIsExporting(true);
 
-    // Check if there's an image selected
-    if (!imageUrl) {
-      setExportError(
-        "Please add an image to the canvas first before exporting."
-      );
-      setIsExporting(false);
-      return;
-    }
-
+    // No longer require an image to be present for export
+    // This allows exporting when there's only text on the canvas
     try {
       // Show loading state
-      setExportError("Preparing image for export...");
+      setExportError("Preparing canvas for export...");
       console.log("Starting PNG export process");
 
       // Set a timeout to prevent hanging
@@ -283,24 +276,19 @@ const ExportControls = () => {
         <div className="mt-4">
           <p className="text-xs mb-2">PNG Export:</p>
           <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg text-center">
-            {!imageUrl ? (
-              <div className="flex flex-col items-center justify-center py-4">
-                <Image size={32} className="text-gray-400 mb-2" />
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-2">
-                  No image selected. Please add an image to the canvas first.
-                </p>
-              </div>
-            ) : isExporting ? (
+            {isExporting ? (
               <div className="flex flex-col items-center justify-center py-4">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
                 <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                  {exportError || "Preparing image for export..."}
+                  {exportError || "Preparing canvas for export..."}
                 </p>
               </div>
             ) : (
               <>
                 <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
-                  Click the button below to download your design as a PNG image.
+                  {!imageUrl
+                    ? "Click the button below to download your text design as a PNG image."
+                    : "Click the button below to download your design as a PNG image."}
                 </p>
                 <button
                   onClick={handleExportPNG}

@@ -123,15 +123,20 @@ const ImageRender = () => {
   );
 
   // Calculate text rectangle for hit testing
-  // Modify the calculateTextRect function in ImageRender component
   const calculateTextRect = useCallback(
     (
       canvas: HTMLCanvasElement
     ): { x: number; y: number; width: number; height: number } | null => {
-      if (!textOverlay.isVisible || !textOverlay.text) return null;
+      if (!textOverlay.isVisible || !textOverlay.text) {
+        console.log("Text not visible or empty");
+        return null;
+      }
 
       const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
+      if (!ctx) {
+        console.error("Could not get canvas context for text rect calculation");
+        return null;
+      }
 
       // Set font properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
@@ -147,15 +152,23 @@ const ImageRender = () => {
       const textX = (canvas.width * textPosition.x) / 100;
       const textY = (canvas.height * textPosition.y) / 100;
 
-      return {
+      const rect = {
         x: textX - textWidth / 2, // Center horizontally
         y: textY - textHeight / 2, // Center vertically
         width: textWidth,
         height: textHeight,
       };
+
+      console.log("Calculated text rect:", rect, "Canvas dimensions:", {
+        width: canvas.width,
+        height: canvas.height,
+      });
+
+      return rect;
     },
     [textOverlay, textPosition]
   );
+
   // Load main image when imageUrl changes
   useEffect(() => {
     if (imageUrl) {
@@ -280,6 +293,12 @@ const ImageRender = () => {
 
       // Reset filter for logos and text
       ctx.filter = "none";
+    } else {
+      // If no main image, ensure canvas still has proper dimensions for text and logos
+      // Keep the default dimensions set above (canvasWidth × canvasWidth*0.75)
+      // Fill with a light background so text is visible
+      ctx.fillStyle = "#f9f9f9";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     // Calculate logo rects for hit testing
@@ -509,10 +528,8 @@ const ImageRender = () => {
   const prepareCanvasForExport = useCallback(async (): Promise<boolean> => {
     console.log("Preparing canvas for export...");
 
-    if (!canvasRef.current || !mainImage) {
-      console.error(
-        "Canvas reference or main image not available for export preparation"
-      );
+    if (!canvasRef.current) {
+      console.error("Canvas reference not available for export preparation");
       return false;
     }
 
@@ -525,20 +542,39 @@ const ImageRender = () => {
 
       // Ensure the canvas has proper dimensions
       const canvas = canvasRef.current;
-      const aspectRatio = mainImage.width / mainImage.height;
 
-      if (canvas.width === 0 || canvas.height === 0) {
-        console.log("Canvas has zero dimensions, setting proper dimensions");
-        canvas.width = canvasWidth;
-        canvas.height =
-          aspectRatio > 1 ? canvasWidth / aspectRatio : canvasWidth * 0.75;
+      if (mainImage) {
+        const aspectRatio = mainImage.width / mainImage.height;
 
-        // Force another render after dimension change
-        renderCanvas();
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.log("Canvas has zero dimensions, setting proper dimensions");
+          canvas.width = canvasWidth;
+          canvas.height =
+            aspectRatio > 1 ? canvasWidth / aspectRatio : canvasWidth * 0.75;
+
+          // Force another render after dimension change
+          renderCanvas();
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+      } else {
+        // If no main image, ensure canvas still has proper dimensions
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.log(
+            "Canvas has zero dimensions (no image), setting default dimensions"
+          );
+          canvas.width = canvasWidth;
+          canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
+
+          // Force another render after dimension change
+          renderCanvas();
+          await new Promise((resolve) => setTimeout(resolve, 200));
+        }
       }
 
-      console.log("Canvas prepared for export");
+      console.log("Canvas prepared for export with dimensions:", {
+        width: canvas.width,
+        height: canvas.height,
+      });
       return true;
     } catch (error) {
       console.error("Error preparing canvas for export:", error);
@@ -551,11 +587,6 @@ const ImageRender = () => {
 
     if (!canvasRef.current) {
       console.error("Canvas reference is not available");
-      return null;
-    }
-
-    if (!mainImage) {
-      console.error("Main image is not loaded");
       return null;
     }
 
@@ -589,7 +620,7 @@ const ImageRender = () => {
       console.error("Error in canvas capture process:", error);
       return null;
     }
-  }, [mainImage, renderCanvas, prepareCanvasForExport]);
+  }, [renderCanvas, prepareCanvasForExport]);
 
   // Re-render canvas when relevant state changes
   useEffect(() => {
@@ -628,9 +659,19 @@ const ImageRender = () => {
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
+      console.log("Mouse down at:", { mouseX, mouseY });
+      console.log("Text overlay visible:", textOverlay.isVisible);
+      console.log("Text content:", textOverlay.text);
+      console.log("Canvas dimensions:", {
+        width: canvas.width,
+        height: canvas.height,
+      });
+
       // Check for text interactions first
       if (textOverlay.isVisible && textOverlay.text) {
         const textRect = calculateTextRect(canvas);
+        console.log("Text rect:", textRect);
+
         if (textRect) {
           // Check if click is on delete button when text is selected
           if (textOverlay.isSelected) {
@@ -645,6 +686,7 @@ const ImageRender = () => {
 
             if (distToDeleteButton <= deleteButtonRadius) {
               // Delete the text
+              console.log("Deleting text");
               deleteText();
               return;
             }
@@ -658,26 +700,38 @@ const ImageRender = () => {
             mouseY <= textRect.y + textRect.height
           ) {
             // Select the text and start dragging
+            console.log("Selecting text and starting drag");
             selectText(true);
             setIsDraggingText(true);
 
             // Calculate drag offset for text
             const textCenterX = (canvas.width * textPosition.x) / 100;
             const textCenterY = (canvas.height * textPosition.y) / 100;
-            setTextDragOffset({
+
+            const newOffset = {
               x: mouseX - textCenterX,
               y: mouseY - textCenterY,
-            });
+            };
+
+            console.log("Setting text drag offset:", newOffset);
+            setTextDragOffset(newOffset);
 
             // Deselect any selected logo
             selectLogo(null);
+
+            // Force a render to ensure the text is highlighted as selected
+            renderCanvas();
             return;
           }
         }
       }
 
       // If clicked outside text, deselect it
-      selectText(false);
+      if (textOverlay.isSelected) {
+        console.log("Deselecting text");
+        selectText(false);
+        renderCanvas();
+      }
 
       // Calculate logo rects
       const logoRects = calculateLogoRects(canvas);
@@ -809,6 +863,19 @@ const ImageRender = () => {
       setMouseX(currentMouseX);
       setMouseY(currentMouseY);
 
+      // Log mouse position during dragging for debugging
+      if (isDraggingText) {
+        console.log("Dragging text, mouse position:", {
+          currentMouseX,
+          currentMouseY,
+        });
+        console.log("Canvas dimensions:", {
+          width: canvas.width,
+          height: canvas.height,
+        });
+        console.log("Text drag offset:", textDragOffset);
+      }
+
       // Update cursor based on what's under it
       canvas.style.cursor = "default";
 
@@ -902,17 +969,29 @@ const ImageRender = () => {
         });
       }
 
-      // Handle dragging text
+      // Handle dragging text - ensure this works even when there's no image
       if (isDraggingText) {
-        // Calculate new position as percentage (accounting for offset)
-        const newX = ((currentMouseX - textDragOffset.x) / canvas.width) * 100;
-        const newY = ((currentMouseY - textDragOffset.y) / canvas.height) * 100;
+        // Ensure canvas dimensions are valid
+        if (canvas.width > 0 && canvas.height > 0) {
+          // Calculate new position as percentage (accounting for offset)
+          const newX =
+            ((currentMouseX - textDragOffset.x) / canvas.width) * 100;
+          const newY =
+            ((currentMouseY - textDragOffset.y) / canvas.height) * 100;
 
-        // Update text position
-        setTextPosition({
-          x: Math.max(0, Math.min(100, newX)),
-          y: Math.max(0, Math.min(100, newY)),
-        });
+          console.log("New text position:", { newX, newY });
+
+          // Update text position with bounds checking
+          setTextPosition({
+            x: Math.max(0, Math.min(100, newX)),
+            y: Math.max(0, Math.min(100, newY)),
+          });
+
+          // Force a render to update the text position visually
+          renderCanvas();
+        } else {
+          console.error("Canvas dimensions are invalid for text dragging");
+        }
       }
 
       // Handle resizing
@@ -957,11 +1036,9 @@ const ImageRender = () => {
       textOverlay,
       calculateTextRect,
       isDraggingText,
-      selectLogo,
-      deleteLogo,
       textDragOffset,
-      selectText,
-      deleteText,
+      textPosition,
+      renderCanvas,
     ]
   );
 
@@ -1197,9 +1274,9 @@ const ImageRender = () => {
         )}
 
         <canvas ref={canvasRef} className="w-full h-auto border rounded" />
-        {!mainImage && logos.length === 0 && (
+        {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            Select an image or preset to display
+            Select an image or add text to display
           </div>
         )}
 

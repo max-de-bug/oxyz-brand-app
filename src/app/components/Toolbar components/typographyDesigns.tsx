@@ -78,7 +78,7 @@ const TypographyDesigns = () => {
     <div className="my-4">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-xs font-medium">Typography:</h2>
-        <button
+        {/* <button
           onClick={toggleSource}
           className="text-xs flex items-center gap-1 text-blue-500 hover:text-blue-700"
           title={
@@ -94,7 +94,7 @@ const TypographyDesigns = () => {
               <Cloud className="w-3 h-3" /> Cloudinary
             </>
           )}
-        </button>
+        </button> */}
       </div>
 
       <div className="flex gap-2 flex-wrap">

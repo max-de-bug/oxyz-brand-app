@@ -126,7 +126,7 @@ const LogoDesigns = () => {
         <div className="flex gap-2">
           <button
             onClick={toggleSource}
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
           >
             {showCloudinary ? "Show Local" : "Show Cloudinary"}{" "}
             <Cloud size={16} />
@@ -135,7 +135,7 @@ const LogoDesigns = () => {
             onClick={() =>
               showCloudinary ? fetchCloudinaryLogos() : fetchLogos()
             }
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-600"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -155,7 +155,7 @@ const LogoDesigns = () => {
 
       <div className="mb-4">
         <Label htmlFor="logo-upload" className="block mb-2 cursor-pointer">
-          <div className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded hover:bg-gray-50">
+          <div className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded hover:bg-gray-600">
             <Upload size={16} />
             <span>Upload Logo</span>
           </div>

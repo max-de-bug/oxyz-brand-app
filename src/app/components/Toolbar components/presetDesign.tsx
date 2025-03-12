@@ -149,7 +149,7 @@ const PresetDesigns = () => {
         <div className="flex gap-2">
           <button
             onClick={toggleSource}
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-blue-700 rounded hover:bg-blue-800"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
           >
             {showCloudinary ? "Show Local" : "Show Cloudinary"}{" "}
             <Cloud size={16} />
@@ -158,7 +158,7 @@ const PresetDesigns = () => {
             onClick={() =>
               showCloudinary ? fetchCloudinaryPresets() : fetchPresets()
             }
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-blue-700 rounded hover:bg-blue-800"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
             disabled={isLoading}
           >
             {isLoading ? (
@@ -395,14 +395,14 @@ const PresetDesigns = () => {
                         });
                       }
                     }}
-                    className="flex-1 text-xs p-1 rounded bg-gray-100 hover:bg-gray-200"
+                    className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700"
                   >
                     Apply Filter
                   </button>
 
                   <button
                     onClick={() => handlePresetClick(preset)}
-                    className="flex-1 text-xs p-1 rounded bg-gray-100 hover:bg-gray-200"
+                    className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700"
                   >
                     Use Preset
                   </button>
@@ -413,7 +413,7 @@ const PresetDesigns = () => {
                   className={`w-full text-xs p-1 rounded flex items-center justify-center gap-1 ${
                     preset.isDefault
                       ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-100 hover:bg-gray-200"
+                      : "bg-gray-800 hover:bg-gray-700"
                   }`}
                 >
                   {preset.isDefault ? (
@@ -440,7 +440,7 @@ const PresetDesigns = () => {
         <div className="mt-4 text-center">
           <button
             onClick={loadMoreCloudinaryPresets}
-            className="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200"
+            className="px-4 py-2 text-sm bg-gray-800 rounded hover:bg-gray-700"
             disabled={loadingCloudinary}
           >
             {loadingCloudinary ? (

@@ -90,7 +90,7 @@ const ImageUploader = () => {
         <h2 className="text-lg font-semibold">Image Upload</h2>
         <button
           onClick={loadImages}
-          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
+          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 hover:bg-gray-700"
           disabled={loading}
         >
           {loading ? (
@@ -104,7 +104,7 @@ const ImageUploader = () => {
       {/* Upload Section */}
       <div className="mb-4">
         <label htmlFor="image-upload" className="block mb-2 cursor-pointer">
-          <div className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded hover:bg-gray-50">
+          <div className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded hover:bg-gray-600">
             <Upload size={16} />
             <span>Upload Image</span>
           </div>
@@ -185,7 +185,7 @@ const ImageUploader = () => {
                 className={`w-full text-xs p-1 mt-2 rounded ${
                   imageUrl === image.url
                     ? "bg-blue-500 text-white hover:bg-blue-600"
-                    : "bg-gray-100 hover:bg-gray-200"
+                    : "bg-gray-800 hover:bg-gray-700"
                 } flex items-center justify-center gap-1`}
                 disabled={loading}
               >
