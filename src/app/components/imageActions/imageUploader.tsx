@@ -63,10 +63,12 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
   };
 
   return (
-    <div className="mb-4 w-full max-w-xl mx-auto">
-      <h2 className="text-xl font-bold mb-2">Upload Image</h2>
+    <div className="mb-4 w-full max-w-4xl mx-auto flex-1 px-4 sm:px-0">
+      <h2 className="text-lg sm:text-xl font-bold mb-2 text-center">
+        Upload Image
+      </h2>
       <div
-        className={`relative w-full h-64 p-4 rounded-lg border-2 border-dashed transition-all ${
+        className={`relative w-full flex-shrink-0 h-40 sm:h-64 p-2 sm:p-4 rounded-lg border-2 border-dashed transition-all ${
           dragActive
             ? "border-primary bg-primary/10"
             : "border-border bg-background dark:border-gray-600 dark:bg-gray-800"
@@ -84,19 +86,21 @@ export default function ImageUploader({ onUpload }: ImageUploaderProps) {
           disabled={uploading}
         />
         <div className="flex flex-col items-center justify-center h-full text-center">
-          <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">
+          <Upload className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground mb-2 sm:mb-4" />
+          <p className="text-[10px] sm:text-sm md:text-base text-muted-foreground">
             {uploading
               ? "Uploading..."
               : "Drag and drop an image, or click to select"}
           </p>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="mt-1 text-[8px] sm:text-xs md:text-sm text-muted-foreground">
             PNG, JPG, GIF up to 10MB
           </p>
         </div>
       </div>
       {uploading && (
-        <p className="mt-2 text-sm text-muted-foreground">Uploading...</p>
+        <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
+          Uploading...
+        </p>
       )}
     </div>
   );

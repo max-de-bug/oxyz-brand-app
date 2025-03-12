@@ -15,16 +15,24 @@ export async function processImage(
 
   const { width, height } = await image.metadata();
 
+  // Resize the logo based on a fixed size
+  const logoWidth = 160; // Set your desired logo width
+  const logoHeight = 80; // Set your desired logo height
+
   const resizedLogo = await logo
-    .resize(Math.floor(width! * 0.2), null, { fit: "inside" })
+    .resize(logoWidth, logoHeight, { fit: "inside" })
     .toBuffer();
+
+  // Ensure the position is within the bounds of the image
+  const topPosition = Math.min(Math.round(position.y), height - logoHeight);
+  const leftPosition = Math.min(Math.round(position.x), width - logoWidth);
 
   const processedImage = await image
     .composite([
       {
         input: resizedLogo,
-        top: position.y,
-        left: position.x,
+        top: topPosition,
+        left: leftPosition,
       },
     ])
     .toBuffer();

@@ -1,3 +1,4 @@
+import AuthButton from "./authButton";
 import { ThemeToggle } from "./themeToggle";
 
 const Navigation = () => {
@@ -7,6 +8,7 @@ const Navigation = () => {
         <h1 className="text-2xl font-bold">O.XYZ Media Kit App</h1>
         <ThemeToggle />
       </div>
+      <AuthButton />
     </nav>
   );
 };
