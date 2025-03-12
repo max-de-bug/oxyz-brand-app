@@ -1,0 +1,16 @@
+# Ignore build output
+.next/
+out/
+
+# Ignore node_modules
+node_modules/
+
+# Ignore generated files
+src/drizzle/schema.d.ts
+src/drizzle/schema.js
+
+# Ignore public directory
+public/
+
+# Ignore all TypeScript declaration files
+**/*.d.ts 

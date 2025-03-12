@@ -1,0 +1,21 @@
+# Ignore development files
+.git
+.github
+.vscode
+.idea
+*.log
+*.md
+!README.md
+
+# Ignore test files
+__tests__
+*.test.js
+*.test.ts
+*.test.tsx
+
+# Ignore configuration files that are not needed in production
+.eslintrc.json
+.eslintignore
+.prettierrc
+.prettierignore
+tsconfig.tsbuildinfo 

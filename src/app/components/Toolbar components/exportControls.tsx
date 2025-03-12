@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useImageStore } from "@/app/store/imageStore";
-import { Download, Copy, AlertCircle, Image } from "lucide-react";
+import { Download, Copy, AlertCircle } from "lucide-react";
 
 const ExportControls = () => {
   const { imageUrl } = useImageStore();

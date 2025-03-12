@@ -1,5 +1,5 @@
 "use client";
-import { Bold, EyeOff, Eye, Italic, Type } from "lucide-react";
+import { Bold, EyeOff, Italic, Type } from "lucide-react";
 import { useDesignStore } from "../../store/designStore";
 import { NumberInput } from "../../utils/numberInput";
 
