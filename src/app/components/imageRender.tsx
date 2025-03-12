@@ -13,11 +13,11 @@ import { useDesignStore } from "@/app/store/designStore";
 import { Trash2 } from "lucide-react";
 
 interface ImageRenderContextType {
-  captureCanvas: () => string | null;
+  captureCanvas: () => Promise<string | null>;
 }
 
 const ImageRenderContext = createContext<ImageRenderContextType>({
-  captureCanvas: () => null,
+  captureCanvas: async () => null,
 });
 
 export const useImageRender = () => useContext(ImageRenderContext);
@@ -158,33 +158,37 @@ const ImageRender = () => {
   );
   // Load main image when imageUrl changes
   useEffect(() => {
-    console.log("ImageRender: imageUrl changed:", imageUrl);
     if (imageUrl) {
+      console.log("Loading main image from URL:", imageUrl);
       const img = new Image();
-      img.crossOrigin = "anonymous"; // Enable CORS for Cloudinary images
-      img.src = imageUrl;
+      // Set crossOrigin before setting src
+      img.crossOrigin = "anonymous";
 
-      console.log("ImageRender: Image src set to:", img.src);
-      console.log("ImageRender: Image src type:", typeof img.src);
-
+      // Handle load errors properly
       img.onload = () => {
-        console.log("ImageRender: Image loaded successfully");
-        console.log("ImageRender: Image details:", {
+        console.log("Main image loaded successfully:", imageUrl);
+        console.log("Image dimensions:", {
           width: img.width,
           height: img.height,
-          naturalWidth: img.naturalWidth,
-          naturalHeight: img.naturalHeight,
         });
         setMainImage(img);
+        // Force a render after the image is loaded with increased delay
+        // to ensure the canvas has time to update
+        setTimeout(() => {
+          renderCanvas();
+          console.log("Canvas rendered after image load");
+        }, 200); // Increased from 100ms to 200ms for more reliability
       };
 
       img.onerror = (err) => {
-        console.error("ImageRender: Error loading main image:", err);
-        console.error("ImageRender: Failed image URL:", imageUrl);
+        console.error("Error loading main image:", err);
         setMainImage(null);
       };
+
+      // Set src after setting up event handlers
+      img.src = imageUrl;
     } else {
-      console.log("ImageRender: imageUrl is null");
+      console.log("No image URL provided, clearing main image");
       setMainImage(null);
     }
   }, [imageUrl]);
@@ -199,8 +203,8 @@ const ImageRender = () => {
       newLogosToLoad.forEach((logo) => {
         console.log("Loading logo image:", logo.url);
         const img = new Image();
+        // Set crossOrigin before setting src
         img.crossOrigin = "anonymous";
-        img.src = logo.url;
 
         img.onload = () => {
           console.log("Logo image loaded successfully:", logo.url);
@@ -214,6 +218,9 @@ const ImageRender = () => {
         img.onerror = (err) => {
           console.error(`Error loading logo image ${logo.id}:`, err);
         };
+
+        // Set src after setting up event handlers
+        img.src = logo.url;
       });
     }
 
@@ -231,13 +238,6 @@ const ImageRender = () => {
       });
     }
   }, [logos]);
-
-  const captureCanvas = useCallback((): string | null => {
-    if (canvasRef.current) {
-      return canvasRef.current.toDataURL("image/png");
-    }
-    return null;
-  }, []);
 
   const renderCanvas = useCallback(() => {
     if (!canvasRef.current) return;
@@ -452,10 +452,168 @@ const ImageRender = () => {
     mouseY,
   ]);
 
+  // Force a complete render of the canvas
+  const forceRender = useCallback(() => {
+    console.log("Forcing complete canvas render");
+
+    if (!canvasRef.current) {
+      console.error("Canvas reference is not available for force render");
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      console.error("Could not get canvas context for force render");
+      return;
+    }
+
+    // Ensure canvas has dimensions
+    if (canvas.width === 0 || canvas.height === 0) {
+      console.log("Canvas has zero dimensions, setting default dimensions");
+      canvas.width = canvasWidth;
+      canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
+    }
+
+    // Clear the canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Perform the render
+    renderCanvas();
+
+    console.log("Force render complete");
+  }, [renderCanvas, canvasWidth]);
+
+  const ensureCanvasRendered = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      if (!canvasRef.current) {
+        console.error("Canvas reference is not available for rendering");
+        resolve();
+        return;
+      }
+
+      console.log("Ensuring canvas is rendered before capture...");
+
+      // Force a complete render
+      forceRender();
+
+      // Give the browser a moment to actually render the canvas
+      setTimeout(() => {
+        console.log("Canvas render wait complete");
+        resolve();
+      }, 300); // Increased timeout for better reliability
+    });
+  }, [forceRender]);
+
+  // Add a function to prepare the canvas for export
+  const prepareCanvasForExport = useCallback(async (): Promise<boolean> => {
+    console.log("Preparing canvas for export...");
+
+    if (!canvasRef.current || !mainImage) {
+      console.error(
+        "Canvas reference or main image not available for export preparation"
+      );
+      return false;
+    }
+
+    try {
+      // Force a complete render
+      forceRender();
+
+      // Wait for the render to complete
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      // Ensure the canvas has proper dimensions
+      const canvas = canvasRef.current;
+      const aspectRatio = mainImage.width / mainImage.height;
+
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.log("Canvas has zero dimensions, setting proper dimensions");
+        canvas.width = canvasWidth;
+        canvas.height =
+          aspectRatio > 1 ? canvasWidth / aspectRatio : canvasWidth * 0.75;
+
+        // Force another render after dimension change
+        renderCanvas();
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+
+      console.log("Canvas prepared for export");
+      return true;
+    } catch (error) {
+      console.error("Error preparing canvas for export:", error);
+      return false;
+    }
+  }, [canvasRef, mainImage, canvasWidth, forceRender, renderCanvas]);
+
+  const captureCanvas = useCallback(async (): Promise<string | null> => {
+    console.log("Attempting to capture canvas...");
+
+    if (!canvasRef.current) {
+      console.error("Canvas reference is not available");
+      return null;
+    }
+
+    if (!mainImage) {
+      console.error("Main image is not loaded");
+      return null;
+    }
+
+    try {
+      // Prepare the canvas for export
+      const isPrepared = await prepareCanvasForExport();
+      if (!isPrepared) {
+        console.warn("Canvas preparation failed, will try to capture anyway");
+      }
+
+      // Force a synchronous render of the canvas before capture
+      renderCanvas();
+
+      // Wait for the render to complete
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // Simple direct capture approach
+      try {
+        const dataUrl = canvasRef.current.toDataURL("image/png", 1.0);
+        if (dataUrl && dataUrl.startsWith("data:image/png")) {
+          console.log("Successfully captured canvas");
+          return dataUrl;
+        }
+      } catch (err) {
+        console.warn("Canvas capture failed:", err);
+        return null;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error in canvas capture process:", error);
+      return null;
+    }
+  }, [mainImage, renderCanvas, prepareCanvasForExport]);
+
   // Re-render canvas when relevant state changes
   useEffect(() => {
-    renderCanvas();
-  }, [renderCanvas, mainImage]); // Add mainImage to dependencies
+    // Debounce the render to prevent too many consecutive renders
+    const debounceTimeout = setTimeout(() => {
+      renderCanvas();
+    }, 50);
+
+    return () => {
+      clearTimeout(debounceTimeout);
+    };
+  }, [
+    renderCanvas,
+    mainImage,
+    logoImages,
+    logos,
+    brightness,
+    contrast,
+    saturation,
+    sepia,
+    hoveredLogoId,
+    textOverlay,
+    textPosition,
+  ]);
 
   // Handle mouse down event
   const handleMouseDown = useCallback(
@@ -981,7 +1139,7 @@ const ImageRender = () => {
     () => ({
       captureCanvas,
     }),
-    [captureCanvas]
+    [captureCanvas, prepareCanvasForExport]
   );
 
   // Delete main image handler
@@ -992,6 +1150,36 @@ const ImageRender = () => {
       clearMainImage();
     }
   };
+
+  // Initialize canvas when component mounts
+  useEffect(() => {
+    console.log("Initializing canvas...");
+
+    if (!canvasRef.current) {
+      console.error("Canvas reference is not available during initialization");
+      return;
+    }
+
+    const canvas = canvasRef.current;
+
+    // Set initial dimensions
+    canvas.width = canvasWidth;
+    canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
+
+    // Clear canvas
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    console.log("Canvas initialized with dimensions:", {
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    // Initial render
+    renderCanvas();
+  }, [canvasWidth, renderCanvas]);
 
   return (
     <ImageRenderContext.Provider value={contextValue}>
