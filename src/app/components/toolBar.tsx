@@ -1,30 +1,84 @@
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+"use client";
+import { useDesignStore } from "../store/designStore";
+
+import HeaderControls from "./Toolbar components/headerControls";
+import ColorPicker from "./Toolbar components/colorPicker";
+import SavedDesigns from "./Toolbar components/savedDesigns";
+import PresetDesigns from "./Toolbar components/presetDesign";
+import TextControls from "./Toolbar components/textControls";
+import PositionControls from "./Toolbar components/positionControls";
+import SizeControls from "./Toolbar components/sizeControls";
+import ExportControls from "./Toolbar components/exportControls";
+import Footer from "./Toolbar components/footer";
+import LogoDesigns from "./Toolbar components/logoDesign";
+import TypographyDesigns from "./Toolbar components/typographyDesigns";
 
 const ToolBar = () => {
+  const {
+    rotation,
+    setRotation,
+    colorValue,
+    setColorValue,
+    translationX,
+    setTranslationX,
+    translationY,
+    setTranslationY,
+    minSize,
+    setMinSize,
+    maxSize,
+    setMaxSize,
+    spacing,
+    setSpacing,
+  } = useDesignStore();
+
   return (
-    <div className="px-4 max-w-4xl mx-auto lg: max-w-96 lg:h-screen lg:fixed lg:right-0 lg:top-0 lg:bg-neutral-200 lg:dark:bg-neutral-900 lg:overflow-y-auto">
-      <div className="my-4 hidden lg:flex justify-between w-full">
-        <div className="flex gap-2">
-          <Button className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-4 py-3 roounded=lg flex items-center">
-            #
-          </Button>
-        </div>
-        <div className="flex gap-2">
-          <Button className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-4 py-3 roounded=lg flex items-center">
-            #
-          </Button>
-        </div>
-      </div>
+    <div className="px-4 max-w-4xl mx-auto lg:max-w-96 lg:h-screen lg:fixed lg:right-0 lg:top-0 lg:bg-neutral-200 lg:dark:bg-neutral-900 lg:overflow-y-auto">
+      <HeaderControls />
       <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
-      {/* colors bar */}
-      <div className="grid gap-4">
-        <Input
-          type="color"
-          className="w-full p-1 px-1 h-10 block bg-white border border-neutral-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700"
-          value="#000000"
-        />
-      </div>
+
+      <ColorPicker colorValue={colorValue} setColorValue={setColorValue} />
+
+      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+      <SavedDesigns />
+
+      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+      <PresetDesigns />
+
+      <LogoDesigns />
+
+      <TypographyDesigns />
+
+      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+      <TextControls />
+
+      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+      <PositionControls
+        translationX={translationX}
+        setTranslationX={setTranslationX}
+        translationY={translationY}
+        setTranslationY={setTranslationY}
+      />
+
+      <SizeControls
+        minSize={minSize}
+        setMinSize={setMinSize}
+        maxSize={maxSize}
+        setMaxSize={setMaxSize}
+        spacing={spacing}
+        setSpacing={setSpacing}
+        rotation={rotation}
+        setRotation={setRotation}
+      />
+
+      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+      <ExportControls />
+
+      <Footer />
     </div>
   );
 };
