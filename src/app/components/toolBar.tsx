@@ -33,7 +33,8 @@ const ToolBar = () => {
   } = useDesignStore();
 
   return (
-    <div className="px-4 max-w-4xl mx-auto lg:max-w-96 lg:h-screen lg:fixed lg:right-0 lg:top-0 lg:bg-neutral-200 lg:dark:bg-neutral-900 lg:overflow-y-auto">
+    <div className="bg-white dark:bg-neutral-950 rounded-lg shadow-md p-4 h-full overflow-y-auto">
+      <h2 className="text-xl font-semibold mb-4 text-center">Tools</h2>
       <HeaderControls />
       <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
 

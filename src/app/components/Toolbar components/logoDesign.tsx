@@ -10,6 +10,7 @@ import {
   Check,
   Trash2,
   Plus,
+  LogIn,
 } from "lucide-react";
 import { useLogoStore } from "@/store/logoStore";
 import { useImageStore } from "@/app/store/imageStore";
@@ -20,7 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 
 const LogoDesigns = () => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [showCloudinary, setShowCloudinary] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -115,8 +116,54 @@ const LogoDesigns = () => {
   const displayLogos = showCloudinary ? cloudinaryLogos : storeLogos;
   const isLoading = showCloudinary ? loadingCloudinary : loading;
 
+  // Instead of returning null, show a sign-in message
   if (!session) {
-    return null;
+    return (
+      <div className="p-4">
+        <h2 className="text-lg font-semibold mb-4">Logo Designs</h2>
+        <div className="p-8 text-center border border-dashed rounded-lg">
+          <LogIn className="mx-auto mb-2" size={24} />
+          <p className="text-sm text-gray-500 mb-4">
+            Please sign in to access your logo library
+          </p>
+          <Button
+            variant="default"
+            onClick={() => (window.location.href = "/api/auth/signin")}
+          >
+            Sign In
+          </Button>
+        </div>
+
+        {/* Canvas Logos Section - still show this even when not signed in */}
+        <div className="mt-6 mb-4">
+          <h3 className="text-sm font-medium mb-2">
+            Logos on Canvas ({logos.length})
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {logos.length > 0 ? (
+              logos.map((logo) => (
+                <Badge
+                  key={logo.id}
+                  variant={logo.isSelected ? "default" : "outline"}
+                  className="flex items-center gap-1 cursor-pointer"
+                >
+                  <img
+                    src={logo.url || (logo as any).secure_url || ""}
+                    alt="Logo"
+                    className="w-4 h-4 object-contain"
+                  />
+                  <span className="max-w-[60px] truncate">Logo</span>
+                </Badge>
+              ))
+            ) : (
+              <span className="text-xs text-gray-500">
+                No logos added to canvas
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -244,7 +291,7 @@ const LogoDesigns = () => {
                 <div className="flex gap-1 mt-2">
                   <button
                     onClick={() => handleAddLogoToCanvas(logo)}
-                    className="flex-1 text-xs p-1 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center gap-1"
+                    className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700 flex items-center justify-center gap-1"
                   >
                     <Plus size={12} /> Add to Canvas
                   </button>
@@ -253,7 +300,7 @@ const LogoDesigns = () => {
                     className={`flex-1 text-xs p-1 rounded flex items-center justify-center gap-1 ${
                       logo.isDefault
                         ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 hover:bg-gray-200"
+                        : "bg-gray-800 hover:bg-gray-700"
                     }`}
                   >
                     {logo.isDefault ? (

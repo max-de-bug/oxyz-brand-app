@@ -202,7 +202,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
       isBold: false,
       isItalic: false,
       color: "#000000",
-      fontFamily: "Space Grotesk",
+      fontFamily: "ABCDiatype-Regular",
       fontSize: 24,
       isSelected: false,
     },

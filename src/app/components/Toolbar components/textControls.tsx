@@ -2,6 +2,15 @@
 import { Bold, EyeOff, Eye, Italic, Type } from "lucide-react";
 import { useDesignStore } from "../../store/designStore";
 import { NumberInput } from "../../utils/numberInput";
+
+// Define available fonts
+const FONT_OPTIONS = [
+  { value: "ABCDiatype-Regular", label: "ABC Diatype" },
+  { value: "ABCDiatypeMono-Regular", label: "ABC Diatype Mono" },
+  { value: "Space Grotesk", label: "Space Grotesk" },
+  { value: "Inter", label: "Inter" },
+];
+
 const TextControls = () => {
   const { textOverlay, setTextOverlay } = useDesignStore();
 
@@ -81,8 +90,11 @@ const TextControls = () => {
             value={textOverlay.fontFamily}
             onChange={(e) => setTextOverlay({ fontFamily: e.target.value })}
           >
-            <option value="Space Grotesk">Space Grotesk</option>
-            <option value="Inter">Inter</option>
+            {FONT_OPTIONS.map((font) => (
+              <option key={font.value} value={font.value}>
+                {font.label}
+              </option>
+            ))}
           </select>
         </div>
         <div className="mt-2">

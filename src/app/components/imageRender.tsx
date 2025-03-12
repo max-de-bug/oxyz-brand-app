@@ -73,14 +73,17 @@ const ImageRender = () => {
       const viewportWidth = window.innerWidth;
 
       // On larger screens, make canvas narrower to leave space for toolbar
-      if (viewportWidth >= 1024) {
+      if (viewportWidth >= 1280) {
+        // xl breakpoint
+        setCanvasWidth(Math.min(900, viewportWidth * 0.5)); // 50% of viewport width, max 900px
+      } else if (viewportWidth >= 1024) {
         // lg breakpoint
-        setCanvasWidth(Math.min(800, viewportWidth * 0.65)); // 65% of viewport width, max 800px
+        setCanvasWidth(Math.min(800, viewportWidth * 0.55)); // 55% of viewport width, max 800px
       } else if (viewportWidth >= 768) {
         // md breakpoint
-        setCanvasWidth(Math.min(800, viewportWidth * 0.7)); // 70% of viewport width, max 800px
+        setCanvasWidth(Math.min(700, viewportWidth * 0.65)); // 65% of viewport width, max 700px
       } else {
-        setCanvasWidth(Math.min(800, viewportWidth * 0.9)); // 90% of viewport width, max 800px
+        setCanvasWidth(Math.min(600, viewportWidth * 0.85)); // 85% of viewport width, max 600px
       }
     };
 
@@ -141,7 +144,14 @@ const ImageRender = () => {
       // Set font properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
       const fontWeight = textOverlay.isBold ? "bold " : "";
-      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px "${textOverlay.fontFamily}", sans-serif`;
+
+      // Use the fontFamily directly without quotes if it's a system font
+      // or with quotes if it's a custom font with hyphens
+      const fontFamilyName = textOverlay.fontFamily.includes("-")
+        ? `"${textOverlay.fontFamily}"`
+        : textOverlay.fontFamily;
+
+      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px ${fontFamilyName}, sans-serif`;
 
       // Measure text
       const metrics = ctx.measureText(textOverlay.text);
@@ -361,7 +371,14 @@ const ImageRender = () => {
       // Set text properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
       const fontWeight = textOverlay.isBold ? "bold " : "";
-      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px "${textOverlay.fontFamily}", sans-serif`;
+
+      // Use the fontFamily directly without quotes if it's a system font
+      // or with quotes if it's a custom font with hyphens
+      const fontFamilyName = textOverlay.fontFamily.includes("-")
+        ? `"${textOverlay.fontFamily}"`
+        : textOverlay.fontFamily;
+
+      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px ${fontFamilyName}, sans-serif`;
       ctx.fillStyle = textOverlay.color;
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
@@ -1260,12 +1277,14 @@ const ImageRender = () => {
 
   return (
     <ImageRenderContext.Provider value={contextValue}>
-      {/* Use inline styles to control the width */}
-      <div className="relative" style={{ maxWidth: `${canvasWidth}px` }}>
+      {/* Canvas container with improved styling */}
+      <div className="relative mx-auto bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md h-full flex flex-col">
+        <h2 className="text-xl font-semibold mb-4 text-center">Canvas</h2>
+
         {/* Delete button for main image */}
         {imageUrl && (
           <button
-            className="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
+            className="absolute top-4 right-4 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
             onClick={handleDeleteMainImage}
             title="Remove image from canvas"
           >
@@ -1273,12 +1292,17 @@ const ImageRender = () => {
           </button>
         )}
 
-        <canvas ref={canvasRef} className="w-full h-auto border rounded" />
-        {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            Select an image or add text to display
-          </div>
-        )}
+        <div className="flex-grow flex items-center justify-center">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-auto border rounded mx-auto"
+          />
+          {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+              Select an image or add text to display
+            </div>
+          )}
+        </div>
 
         {/* Controls overlay */}
         <div className="absolute bottom-2 right-2 flex gap-2">

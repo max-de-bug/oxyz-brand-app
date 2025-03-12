@@ -44,6 +44,7 @@ interface ImageState {
   ) => void;
   resetFilter: () => void;
   clearLogos: () => void;
+  clearSavedImages: () => void;
   reset: () => void;
   uploadImage: (file: File) => Promise<void>;
   deleteImage: (id: string) => Promise<void>;
@@ -145,10 +146,15 @@ export const useImageStore = create<ImageState>((set, get) => ({
     set({ logos: [] });
   },
 
+  clearSavedImages: () => {
+    set({ savedImages: [] });
+  },
+
   reset: () => {
     set({
       imageUrl: null,
       logos: [],
+      savedImages: [],
       brightness: 100,
       contrast: 100,
       saturation: 100,

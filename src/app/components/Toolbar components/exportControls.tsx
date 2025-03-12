@@ -12,8 +12,13 @@ const ExportControls = () => {
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportPNG = async () => {
+  // Separate function to just switch to PNG tab without downloading
+  const switchToPngTab = () => {
     setActiveTab("PNG");
+    setExportError(null);
+  };
+
+  const handleExportPNG = async () => {
     setExportError(null);
     setIsExporting(true);
 
@@ -233,7 +238,7 @@ const ExportControls = () => {
         </li>
         <li className="flex-1">
           <button
-            onClick={handleExportPNG}
+            onClick={switchToPngTab}
             className={`flex items-center justify-center w-full h-10 px-4 rounded-lg ${
               activeTab === "PNG"
                 ? "text-white bg-neutral-800 hover:bg-neutral-700"
