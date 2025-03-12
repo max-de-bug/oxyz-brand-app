@@ -1,8 +1,17 @@
 "use client";
 
 import React from "react";
-import { useImageStore, CanvasLogo } from "@/store/imageStore";
-import { Trash2, Move, ArrowUp, ArrowDown } from "lucide-react";
+import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { useImageStore, CanvasLogo } from "@/app/store/imageStore";
+import {
+  Trash2,
+  Move,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 

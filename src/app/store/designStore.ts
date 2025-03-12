@@ -26,13 +26,14 @@ export interface PresetFilter {
 }
 
 export interface TextOverlay {
+  isVisible: boolean;
   text: string;
-  fontSize: number;
-  color: string;
-  fontFamily: string;
   isBold: boolean;
   isItalic: boolean;
-  isVisible: boolean;
+  color: string;
+  fontFamily: string;
+  fontSize: number;
+  isSelected: boolean;
 }
 
 interface DesignState {
@@ -62,7 +63,9 @@ interface DesignState {
   setSelectedPreset: (preset: PresetFilter) => void;
   setImageUrl: (imageUrl: string, imageId: string | null) => void;
   setLogoId: (logoId: string | null) => void;
-  setTextOverlay: (textOverlay: Partial<TextOverlay>) => void;
+  setTextOverlay: (updates: Partial<TextOverlay>) => void;
+  selectText: (selected: boolean) => void;
+  deleteText: () => void;
 
   // Methods for saved designs
   fetchSavedDesigns: () => Promise<void>;
@@ -118,6 +121,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
             isBold: false,
             isItalic: false,
             isVisible: false,
+            isSelected: false,
           },
           isLoading: false,
         });
@@ -193,13 +197,14 @@ export const useDesignStore = create<DesignState>((set, get) => {
     selectedPreset: presetFilters[0],
     imageUrl: "",
     textOverlay: {
+      isVisible: false,
       text: "",
-      fontSize: 24,
-      color: "#ffffff",
-      fontFamily: "Space Grotesk",
       isBold: false,
       isItalic: false,
-      isVisible: true,
+      color: "#000000",
+      fontFamily: "Space Grotesk",
+      fontSize: 24,
+      isSelected: false,
     },
     savedDesigns: [],
     isLoading: false,
@@ -217,9 +222,34 @@ export const useDesignStore = create<DesignState>((set, get) => {
     setSelectedPreset: (preset) => set({ selectedPreset: preset }),
     setImageUrl: (imageUrl, imageId) => set({ imageUrl, imageId }),
     setLogoId: (logoId) => set({ logoId }),
-    setTextOverlay: (textOverlay) =>
+    setTextOverlay: (updates) =>
+      set((state) => {
+        // If text is being updated, ensure visibility
+        if ("text" in updates && updates.text && !state.textOverlay.isVisible) {
+          return {
+            textOverlay: {
+              ...state.textOverlay,
+              ...updates,
+              isVisible: true,
+            },
+          };
+        }
+        return {
+          textOverlay: { ...state.textOverlay, ...updates },
+        };
+      }),
+    selectText: (selected) =>
       set((state) => ({
-        textOverlay: { ...state.textOverlay, ...textOverlay },
+        textOverlay: { ...state.textOverlay, isSelected: selected },
+      })),
+    deleteText: () =>
+      set((state) => ({
+        textOverlay: {
+          ...state.textOverlay,
+          isVisible: false,
+          text: "",
+          isSelected: false,
+        },
       })),
 
     // Fetch saved designs from the API
@@ -257,6 +287,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
                 isBold: false,
                 isItalic: false,
                 isVisible: false,
+                isSelected: false,
               },
               position: designState.position || {
                 translationX: 0,

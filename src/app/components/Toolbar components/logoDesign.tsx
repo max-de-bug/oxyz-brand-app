@@ -12,7 +12,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useLogoStore } from "@/store/logoStore";
-import { useImageStore } from "@/store/imageStore";
+import { useImageStore } from "@/app/store/imageStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -78,16 +78,16 @@ const LogoDesigns = () => {
     }
   };
   const handleLogoClick = useCallback(
-    (logo) => {
+    (logo: any) => {
       setSelectedLogo(logo);
     },
     [setSelectedLogo]
   );
 
   const handleAddLogoToCanvas = useCallback(
-    (logo) => {
+    (logo: any) => {
       // Get the URL from the logo object
-      const logoUrl = logo.url || logo.secure_url;
+      const logoUrl = logo.url || (logo as any).secure_url;
 
       if (logoUrl) {
         console.log("Adding logo to canvas:", logoUrl);
@@ -190,7 +190,7 @@ const LogoDesigns = () => {
                 className="flex items-center gap-1 cursor-pointer"
               >
                 <img
-                  src={logo.url || logo.secure_url || ""}
+                  src={logo.url || (logo as any).secure_url || ""}
                   alt="Logo"
                   className="w-4 h-4 object-contain"
                 />
@@ -234,7 +234,7 @@ const LogoDesigns = () => {
                 </div>
                 <div className="flex justify-center p-2 bg-gray-50 rounded">
                   <img
-                    src={logo.url || logo.secure_url || ""}
+                    src={logo.url || (logo as any).secure_url || ""}
                     alt={logo.filename || "Logo"}
                     className="object-contain max-h-24 cursor-pointer"
                     style={{ maxWidth: "100%" }}

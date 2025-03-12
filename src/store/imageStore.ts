@@ -1,5 +1,12 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
+import { apiClient } from "@/lib/api-client";
+
+export interface SavedImage {
+  id: string;
+  url: string;
+  filename?: string;
+}
 
 // Define the logo object type
 export interface CanvasLogo {
@@ -23,8 +30,12 @@ interface ImageState {
   saturation: number;
   sepia: number;
 
+  // Saved images
+  savedImages: SavedImage[];
+
   // Actions
-  setImage: (url: string) => void;
+  setImage: (url: string | null) => void;
+  clearMainImage: () => void;
   addLogo: (url: string) => void;
   updateLogo: (id: string, updates: Partial<Omit<CanvasLogo, "id">>) => void;
   selectLogo: (id: string | null) => void;
@@ -41,12 +52,17 @@ interface ImageState {
   resetFilter: () => void;
   clearLogos: () => void;
   reset: () => void;
+  uploadImage: (file: File) => Promise<void>;
+  deleteImage: (id: string) => Promise<void>;
+  fetchSavedImages: () => Promise<void>;
+  fetchCloudinaryImages: (folder?: string) => Promise<void>;
 }
 
 export const useImageStore = create<ImageState>((set, get) => ({
   // Default values
   imageUrl: null,
   logos: [],
+  savedImages: [],
   brightness: 100,
   contrast: 100,
   saturation: 100,
@@ -54,6 +70,8 @@ export const useImageStore = create<ImageState>((set, get) => ({
 
   // Actions
   setImage: (url) => set({ imageUrl: url }),
+
+  clearMainImage: () => set({ imageUrl: null }),
 
   addLogo: (url) => {
     console.log("Adding logo to store:", url);
@@ -139,13 +157,31 @@ export const useImageStore = create<ImageState>((set, get) => ({
 
   clearLogos: () => set({ logos: [] }),
 
-  reset: () =>
+  reset: () => {
     set({
       imageUrl: null,
       logos: [],
+      savedImages: [],
       brightness: 100,
       contrast: 100,
       saturation: 100,
       sepia: 0,
-    }),
+    });
+  },
+
+  uploadImage: async (file: File) => {
+    // Implementation of uploadImage
+  },
+
+  deleteImage: async (id: string) => {
+    // Implementation of deleteImage
+  },
+
+  fetchSavedImages: async () => {
+    // Implementation of fetchSavedImages
+  },
+
+  fetchCloudinaryImages: async (folder?: string) => {
+    // Implementation of fetchCloudinaryImages
+  },
 }));

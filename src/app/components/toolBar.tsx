@@ -12,6 +12,7 @@ import ExportControls from "./Toolbar components/exportControls";
 import Footer from "./Toolbar components/footer";
 import LogoDesigns from "./Toolbar components/logoDesign";
 import TypographyDesigns from "./Toolbar components/typographyDesigns";
+import ImageUploader from "./Toolbar components/imageUploader";
 
 const ToolBar = () => {
   const {
@@ -47,6 +48,8 @@ const ToolBar = () => {
       <PresetDesigns />
 
       <LogoDesigns />
+
+      <ImageUploader />
 
       <TypographyDesigns />
 

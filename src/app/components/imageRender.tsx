@@ -8,7 +8,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-import { useImageStore, CanvasLogo } from "@/store/imageStore";
+import { useImageStore, CanvasLogo } from "@/app/store/imageStore";
 import { useDesignStore } from "@/app/store/designStore";
 import { Trash2 } from "lucide-react";
 
@@ -59,10 +59,12 @@ const ImageRender = () => {
     selectLogo,
     updateLogo,
     deleteLogo,
+    clearMainImage,
   } = useImageStore();
 
   // Get text overlay from design store
-  const { textOverlay } = useDesignStore();
+  const { textOverlay, setTextOverlay, selectText, deleteText } =
+    useDesignStore();
 
   // Adjust canvas size based on viewport width
   useEffect(() => {
@@ -121,6 +123,7 @@ const ImageRender = () => {
   );
 
   // Calculate text rectangle for hit testing
+  // Modify the calculateTextRect function in ImageRender component
   const calculateTextRect = useCallback(
     (
       canvas: HTMLCanvasElement
@@ -138,36 +141,50 @@ const ImageRender = () => {
       // Measure text
       const metrics = ctx.measureText(textOverlay.text);
       const textWidth = metrics.width;
-      const textHeight = textOverlay.fontSize * 1.2; // Approximate height based on font size
+      const textHeight = textOverlay.fontSize; // Use fontSize directly for height
 
-      // Calculate position
-      const textX = (canvas.width * textPosition.x) / 100 - textWidth / 2;
-      const textY = (canvas.height * textPosition.y) / 100 - textHeight / 2;
+      // Calculate position (centered around the text position)
+      const textX = (canvas.width * textPosition.x) / 100;
+      const textY = (canvas.height * textPosition.y) / 100;
 
       return {
-        x: textX,
-        y: textY - textHeight, // Adjust for baseline
+        x: textX - textWidth / 2, // Center horizontally
+        y: textY - textHeight / 2, // Center vertically
         width: textWidth,
         height: textHeight,
       };
     },
     [textOverlay, textPosition]
   );
-
   // Load main image when imageUrl changes
   useEffect(() => {
+    console.log("ImageRender: imageUrl changed:", imageUrl);
     if (imageUrl) {
       const img = new Image();
       img.crossOrigin = "anonymous"; // Enable CORS for Cloudinary images
       img.src = imageUrl;
+
+      console.log("ImageRender: Image src set to:", img.src);
+      console.log("ImageRender: Image src type:", typeof img.src);
+
       img.onload = () => {
+        console.log("ImageRender: Image loaded successfully");
+        console.log("ImageRender: Image details:", {
+          width: img.width,
+          height: img.height,
+          naturalWidth: img.naturalWidth,
+          naturalHeight: img.naturalHeight,
+        });
         setMainImage(img);
       };
+
       img.onerror = (err) => {
-        console.error("Error loading main image:", err);
+        console.error("ImageRender: Error loading main image:", err);
+        console.error("ImageRender: Failed image URL:", imageUrl);
         setMainImage(null);
       };
     } else {
+      console.log("ImageRender: imageUrl is null");
       setMainImage(null);
     }
   }, [imageUrl]);
@@ -320,8 +337,8 @@ const ImageRender = () => {
       }
     });
 
-    // Draw text overlay if visible
-    if (textOverlay.isVisible && textOverlay.text) {
+    // Draw text overlay if visible and has text
+    if (textOverlay.isVisible && textOverlay.text.trim() !== "") {
       // Set text properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
       const fontWeight = textOverlay.isBold ? "bold " : "";
@@ -334,14 +351,14 @@ const ImageRender = () => {
       const textX = (canvas.width * textPosition.x) / 100;
       const textY = (canvas.height * textPosition.y) / 100;
 
-      // Draw text
+      // Draw text first (to ensure it's always visible)
       ctx.fillText(textOverlay.text, textX, textY);
 
-      // Draw text bounding box if text is being dragged or hovered
+      // Then draw the bounding box and controls
       const textRect = calculateTextRect(canvas);
       if (textRect) {
-        if (isDraggingText) {
-          // Draw a more prominent bounding box when dragging
+        if (isDraggingText || textOverlay.isSelected) {
+          // Draw a more prominent bounding box when dragging or selected
           ctx.strokeStyle = "#3b82f6"; // Blue
           ctx.lineWidth = 2;
           ctx.setLineDash([]);
@@ -352,7 +369,7 @@ const ImageRender = () => {
             textRect.height
           );
 
-          // Draw control points (similar to logo)
+          // Draw control points
           ctx.fillStyle = "#3b82f6";
           const handleSize = 6;
 
@@ -370,6 +387,32 @@ const ImageRender = () => {
               handleSize
             );
           });
+
+          // Draw delete button when selected (not dragging)
+          if (textOverlay.isSelected && !isDraggingText) {
+            // Draw delete button at top right
+            ctx.fillStyle = "#ef4444"; // Red
+            ctx.beginPath();
+            ctx.arc(
+              textRect.x + textRect.width,
+              textRect.y,
+              10,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+
+            // Draw X in delete button
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
+            ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
+            ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
+            ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
+            ctx.stroke();
+          }
         } else if (
           mouseX >= textRect.x &&
           mouseX <= textRect.x + textRect.width &&
@@ -409,10 +452,10 @@ const ImageRender = () => {
     mouseY,
   ]);
 
-  // Re-render when any relevant state changes
+  // Re-render canvas when relevant state changes
   useEffect(() => {
     renderCanvas();
-  }, [renderCanvas]);
+  }, [renderCanvas, mainImage]); // Add mainImage to dependencies
 
   // Handle mouse down event
   const handleMouseDown = useCallback(
@@ -426,6 +469,57 @@ const ImageRender = () => {
 
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
+
+      // Check for text interactions first
+      if (textOverlay.isVisible && textOverlay.text) {
+        const textRect = calculateTextRect(canvas);
+        if (textRect) {
+          // Check if click is on delete button when text is selected
+          if (textOverlay.isSelected) {
+            const deleteButtonX = textRect.x + textRect.width;
+            const deleteButtonY = textRect.y;
+            const deleteButtonRadius = 10;
+
+            const distToDeleteButton = Math.sqrt(
+              Math.pow(mouseX - deleteButtonX, 2) +
+                Math.pow(mouseY - deleteButtonY, 2)
+            );
+
+            if (distToDeleteButton <= deleteButtonRadius) {
+              // Delete the text
+              deleteText();
+              return;
+            }
+          }
+
+          // Check if click is inside text
+          if (
+            mouseX >= textRect.x &&
+            mouseX <= textRect.x + textRect.width &&
+            mouseY >= textRect.y &&
+            mouseY <= textRect.y + textRect.height
+          ) {
+            // Select the text and start dragging
+            selectText(true);
+            setIsDraggingText(true);
+
+            // Calculate drag offset for text
+            const textCenterX = (canvas.width * textPosition.x) / 100;
+            const textCenterY = (canvas.height * textPosition.y) / 100;
+            setTextDragOffset({
+              x: mouseX - textCenterX,
+              y: mouseY - textCenterY,
+            });
+
+            // Deselect any selected logo
+            selectLogo(null);
+            return;
+          }
+        }
+      }
+
+      // If clicked outside text, deselect it
+      selectText(false);
 
       // Calculate logo rects
       const logoRects = calculateLogoRects(canvas);
@@ -478,33 +572,6 @@ const ImageRender = () => {
               return;
             }
           }
-        }
-      }
-
-      // Check if click is inside text
-      if (textOverlay.isVisible && textOverlay.text) {
-        const textRect = calculateTextRect(canvas);
-        if (
-          textRect &&
-          mouseX >= textRect.x &&
-          mouseX <= textRect.x + textRect.width &&
-          mouseY >= textRect.y &&
-          mouseY <= textRect.y + textRect.height
-        ) {
-          // Start dragging text
-          setIsDraggingText(true);
-
-          // Calculate drag offset for text (similar to logo dragging)
-          const textCenterX = (canvas.width * textPosition.x) / 100;
-          const textCenterY = (canvas.height * textPosition.y) / 100;
-          setTextDragOffset({
-            x: mouseX - textCenterX,
-            y: mouseY - textCenterY,
-          });
-
-          // Deselect any selected logo
-          selectLogo(null);
-          return;
         }
       }
 
@@ -561,6 +628,9 @@ const ImageRender = () => {
       deleteLogo,
       textOverlay,
       calculateTextRect,
+      selectText,
+      deleteText,
+      textPosition,
     ]
   );
 
@@ -661,11 +731,6 @@ const ImageRender = () => {
 
       // Handle dragging logo
       if (isDragging && draggedLogoId) {
-        console.log("Dragging logo:", draggedLogoId, "Mouse position:", {
-          x: currentMouseX,
-          y: currentMouseY,
-        });
-
         // Calculate new position as percentage
         const newX = ((currentMouseX - dragOffset.x) / canvas.width) * 100;
         const newY = ((currentMouseY - dragOffset.y) / canvas.height) * 100;
@@ -737,6 +802,8 @@ const ImageRender = () => {
       selectLogo,
       deleteLogo,
       textDragOffset,
+      selectText,
+      deleteText,
     ]
   );
 
@@ -851,7 +918,7 @@ const ImageRender = () => {
       // Existing logo keyboard handling...
 
       // Add text keyboard handling
-      if (textOverlay.isVisible && textOverlay.text && isDraggingText) {
+      if (textOverlay.isSelected) {
         const STEP = 1; // 1% movement step
 
         switch (e.key) {
@@ -883,6 +950,13 @@ const ImageRender = () => {
             }));
             e.preventDefault();
             break;
+          case "Delete":
+          case "Backspace":
+            deleteText();
+            break;
+          case "Escape":
+            selectText(false);
+            break;
         }
       }
     };
@@ -892,7 +966,15 @@ const ImageRender = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [logos, updateLogo, deleteLogo, textOverlay, isDraggingText]);
+  }, [
+    logos,
+    updateLogo,
+    deleteLogo,
+    textOverlay.isSelected,
+    selectText,
+    deleteText,
+    textPosition,
+  ]);
 
   // Create context value with memoized captureCanvas function
   const contextValue = React.useMemo(
@@ -902,10 +984,30 @@ const ImageRender = () => {
     [captureCanvas]
   );
 
+  // Delete main image handler
+  const handleDeleteMainImage = () => {
+    if (
+      confirm("Are you sure you want to remove this image from the canvas?")
+    ) {
+      clearMainImage();
+    }
+  };
+
   return (
     <ImageRenderContext.Provider value={contextValue}>
       {/* Use inline styles to control the width */}
       <div className="relative" style={{ maxWidth: `${canvasWidth}px` }}>
+        {/* Delete button for main image */}
+        {imageUrl && (
+          <button
+            className="absolute top-2 right-2 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
+            onClick={handleDeleteMainImage}
+            title="Remove image from canvas"
+          >
+            <Trash2 size={20} />
+          </button>
+        )}
+
         <canvas ref={canvasRef} className="w-full h-auto border rounded" />
         {!mainImage && logos.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400">

@@ -5,6 +5,14 @@ import { NumberInput } from "../../utils/numberInput";
 const TextControls = () => {
   const { textOverlay, setTextOverlay } = useDesignStore();
 
+  // Handle text input with visibility
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTextOverlay({
+      text: e.target.value,
+      isVisible: true, // Make sure text is visible when typing
+    });
+  };
+
   return (
     <>
       <ul className="flex flex-wrap text-xs font-medium text-center justify-center text-gray-500 dark:text-gray-400 gap-2 mb-2">
@@ -30,7 +38,7 @@ const TextControls = () => {
           maxLength={20}
           placeholder="Enter your text here"
           value={textOverlay.text}
-          onChange={(e) => setTextOverlay({ text: e.target.value })}
+          onChange={handleTextChange} // Use the new handler
         />
         <div className="flex text-xs gap-2 mt-2">
           <button

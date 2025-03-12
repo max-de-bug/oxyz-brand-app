@@ -12,7 +12,7 @@ import {
   Sliders,
 } from "lucide-react";
 import { usePresetStore, Preset } from "@/store/presetStore";
-import { useImageStore } from "@/store/imageStore";
+import { useImageStore } from "@/app/store/imageStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
