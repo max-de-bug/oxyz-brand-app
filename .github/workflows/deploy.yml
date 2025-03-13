@@ -34,15 +34,15 @@ jobs:
             # Login to GitHub Container Registry
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Pull the latest frontend image only (backend is temporarily disabled)
+            # Pull the latest images
             docker pull ghcr.io/${{ env.REPO_LOWER }}/frontend:latest
+            docker pull ghcr.io/${{ env.REPO_LOWER }}/backend:latest
 
             # Update the .env file with Supabase and Cloudinary credentials from GitHub secrets
             cat > .env << EOL
             # Docker Compose Environment Variables
             FRONTEND_IMAGE=ghcr.io/${{ env.REPO_LOWER }}/frontend:latest
-            # Backend is temporarily disabled
-            # BACKEND_IMAGE=ghcr.io/${{ env.REPO_LOWER }}/backend:latest
+            BACKEND_IMAGE=ghcr.io/${{ env.REPO_LOWER }}/backend:latest
             NODE_ENV=production
 
             # Database Configuration (Supabase)
