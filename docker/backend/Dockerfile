@@ -3,11 +3,14 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+# Install necessary build tools
+RUN apk add --no-cache python3 make g++
+
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with more verbose output and fallback to npm install if ci fails
+RUN npm ci --verbose || npm install
 
 # Copy source code
 COPY . .
@@ -23,8 +26,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install production dependencies only with fallback
+RUN npm ci --only=production --verbose || npm install --only=production
 
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
