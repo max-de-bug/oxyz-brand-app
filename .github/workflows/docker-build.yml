@@ -26,6 +26,27 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set lowercase repository name
+        run: |
+          echo "REPO_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Check directory structure
+        run: |
+          echo "Repository root contents:"
+          ls -la
+
+          if [ -d "oxyz-server" ]; then
+            echo "oxyz-server directory exists, checking contents:"
+            ls -la oxyz-server
+          else
+            echo "oxyz-server directory does not exist, checking parent directory:"
+            ls -la ..
+            if [ -d "../oxyz-server" ]; then
+              echo "../oxyz-server directory exists, checking contents:"
+              ls -la ../oxyz-server
+            fi
+          fi
+
       - name: Build and push Frontend
         uses: docker/build-push-action@v4
         with:

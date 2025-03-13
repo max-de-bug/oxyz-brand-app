@@ -9,7 +9,8 @@ services:
       - "./docker/nginx/conf.d:/etc/nginx/conf.d"
     depends_on:
       - frontend
-      - backend
+      # Backend is temporarily disabled
+      # - backend
     networks:
       - internal-network
       - external-network
