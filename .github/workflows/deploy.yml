@@ -14,6 +14,10 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
+      - name: Set lowercase repository name
+        run: |
+          echo "REPO_LOWER=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         with:
@@ -36,8 +40,8 @@ jobs:
             # Update the .env file with Supabase and Cloudinary credentials from GitHub secrets
             cat > .env << EOL
             # Docker Compose Environment Variables
-            FRONTEND_IMAGE=ghcr.io/${{ github.repository }}/frontend:latest
-            BACKEND_IMAGE=ghcr.io/${{ github.repository }}/backend:latest
+            FRONTEND_IMAGE=ghcr.io/${{ env.REPO_LOWER }}/frontend:latest
+            BACKEND_IMAGE=ghcr.io/${{ env.REPO_LOWER }}/backend:latest
             NODE_ENV=production
 
             # Database Configuration (Supabase)
