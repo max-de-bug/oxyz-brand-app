@@ -4,13 +4,13 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY oxyz-server/package*.json ./
+COPY package*.json ./
 
 # Install dependencies
 RUN npm ci
 
 # Copy source code
-COPY oxyz-server/ .
+COPY . .
 
 # Build the application
 RUN npm run build
@@ -21,7 +21,7 @@ FROM node:18-alpine
 WORKDIR /app
 
 # Copy package files
-COPY oxyz-server/package*.json ./
+COPY package*.json ./
 
 # Install production dependencies only
 RUN npm ci --only=production
@@ -34,4 +34,4 @@ COPY --from=builder /app/drizzle-generate ./drizzle-generate
 EXPOSE 3001
 
 # Start the application
-CMD ["npm", "run", "start:prod"] 
+CMD ["node", "dist/main"] 
