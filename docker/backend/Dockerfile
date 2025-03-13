@@ -7,9 +7,9 @@ WORKDIR /app
 # Install necessary build tools for NestJS dependencies
 RUN apk add --no-cache python3 make g++ git
 
-# Copy package files
-COPY package.json ./
-COPY package-lock.json ./
+# Copy package files - these are already in the root of the context
+COPY package.json .
+COPY package-lock.json .
 
 # Install dependencies
 RUN npm ci || npm install
@@ -29,8 +29,8 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++ git
 
 # Copy package files from builder stage
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/package-lock.json ./
+COPY --from=builder /app/package.json .
+COPY --from=builder /app/package-lock.json .
 
 # Install production dependencies only
 RUN npm ci --only=production || npm install --only=production
