@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - "./docker/nginx/conf.d:/etc/nginx/conf.d"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - internal-network
+      - external-network
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-oxyz-brand-app-frontend:latest}
+    restart: always
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - NEXT_PUBLIC_API_URL=http://backend:3001/api
+    volumes:
+      - ./public:/app/public
+    networks:
+      - internal-network
+
+  backend:
+    image: ${BACKEND_IMAGE:-oxyz-brand-app-backend:latest}
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=3001
+      - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
+      - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
+      - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
+    restart: always
+    networks:
+      - internal-network
+
+networks:
+  internal-network:
+    driver: bridge
+  external-network:
+    driver: bridge

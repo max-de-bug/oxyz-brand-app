@@ -2,7 +2,7 @@ import NextAuth from "next-auth";
 import DiscordProvider from "next-auth/providers/discord";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import { API_BASE_URL } from "@/config";
-import { db } from "@/drizzle/schema";
+import { db } from "../../../../../oxyz-server/src/drizzle/schema";
 
 const handler = NextAuth({
   adapter: DrizzleAdapter(db),

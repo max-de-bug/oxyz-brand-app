@@ -8,6 +8,11 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  images: {
+    domains: ["cdn.discordapp.com", "res.cloudinary.com"],
+  },
+  // Enable standalone output for Docker deployment
+  output: "standalone",
   // Add any other configurations here
 };
 

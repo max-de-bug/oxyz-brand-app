@@ -1,0 +1,61 @@
+name: Deploy to Server
+
+on:
+  workflow_run:
+    workflows: ["Docker Build and Deploy"]
+    types:
+      - completed
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+
+    steps:
+      - name: Deploy to server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            # Pull the latest docker-compose.yml and related files
+            git pull
+
+            # Login to GitHub Container Registry
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull the latest images
+            docker-compose pull
+
+            # Update the .env file with Supabase and Cloudinary credentials from GitHub secrets
+            cat > .env << EOL
+            # Docker Compose Environment Variables
+            FRONTEND_IMAGE=ghcr.io/${{ github.repository }}/frontend:latest
+            BACKEND_IMAGE=ghcr.io/${{ github.repository }}/backend:latest
+            NODE_ENV=production
+
+            # Database Configuration (Supabase)
+            POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+
+            # Cloudinary Configuration
+            CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+            CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+            CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+
+            # Next.js Configuration
+            NEXT_PUBLIC_API_URL=http://localhost/api
+            EOL
+
+            # Restart the containers
+            docker-compose up -d
