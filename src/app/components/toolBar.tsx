@@ -33,56 +33,65 @@ const ToolBar = () => {
   } = useDesignStore();
 
   return (
-    <div className="bg-white dark:bg-neutral-950 rounded-lg shadow-md p-4 h-full overflow-y-auto">
-      <h2 className="text-xl font-semibold mb-4 text-center">Tools</h2>
-      <HeaderControls />
-      <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
+    <div className="bg-white dark:bg-neutral-950 rounded-lg shadow-md p-4 flex flex-col h-[calc(150vh-2rem)] max-h-[calc(150vh-2rem)] overflow-hidden">
+      <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-neutral-950 z-10 py-2">
+        Tools
+      </h2>
 
-      <ColorPicker colorValue={colorValue} setColorValue={setColorValue} />
+      {/* Scrollable content container */}
+      <div className="overflow-y-auto flex-grow pr-2 -mr-2 pb-4">
+        <HeaderControls />
+        <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
 
-      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+        <ColorPicker colorValue={colorValue} setColorValue={setColorValue} />
 
-      <SavedDesigns />
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+        <SavedDesigns />
 
-      <PresetDesigns />
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-      <LogoDesigns />
+        <PresetDesigns />
 
-      <ImageUploader />
+        <LogoDesigns />
 
-      <TypographyDesigns />
+        <ImageUploader />
 
-      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+        <TypographyDesigns />
 
-      <TextControls />
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+        <TextControls />
 
-      <PositionControls
-        translationX={translationX}
-        setTranslationX={setTranslationX}
-        translationY={translationY}
-        setTranslationY={setTranslationY}
-      />
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-      <SizeControls
-        minSize={minSize}
-        setMinSize={setMinSize}
-        maxSize={maxSize}
-        setMaxSize={setMaxSize}
-        spacing={spacing}
-        setSpacing={setSpacing}
-        rotation={rotation}
-        setRotation={setRotation}
-      />
+        <PositionControls
+          translationX={translationX}
+          setTranslationX={setTranslationX}
+          translationY={translationY}
+          setTranslationY={setTranslationY}
+        />
 
-      <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+        <SizeControls
+          minSize={minSize}
+          setMinSize={setMinSize}
+          maxSize={maxSize}
+          setMaxSize={setMaxSize}
+          spacing={spacing}
+          setSpacing={setSpacing}
+          rotation={rotation}
+          setRotation={setRotation}
+        />
 
-      <ExportControls />
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-      <Footer />
+        <ExportControls />
+      </div>
+
+      {/* Footer is outside the scrollable area - always visible at bottom */}
+      <div className="mt-auto pt-2 sticky bottom-0 bg-white dark:bg-neutral-950">
+        <Footer />
+      </div>
     </div>
   );
 };

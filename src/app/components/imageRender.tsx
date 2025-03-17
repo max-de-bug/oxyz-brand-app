@@ -1277,8 +1277,8 @@ const ImageRender = () => {
 
   return (
     <ImageRenderContext.Provider value={contextValue}>
-      {/* Canvas container with improved styling */}
-      <div className="relative mx-auto bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md h-full flex flex-col">
+      {/* Canvas container with improved styling - removing sticky behavior */}
+      <div className="relative mx-auto bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md">
         <h2 className="text-xl font-semibold mb-4 text-center">Canvas</h2>
 
         {/* Delete button for main image */}
@@ -1292,7 +1292,8 @@ const ImageRender = () => {
           </button>
         )}
 
-        <div className="flex-grow flex items-center justify-center">
+        {/* Canvas with static positioning instead of flex */}
+        <div className="relative overflow-auto">
           <canvas
             ref={canvasRef}
             className="w-full h-auto border rounded mx-auto"
