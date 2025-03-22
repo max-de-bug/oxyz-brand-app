@@ -30,6 +30,7 @@ const ImageRender = () => {
   );
   const [hoveredLogoId, setHoveredLogoId] = useState<string | null>(null);
   const [canvasWidth, setCanvasWidth] = useState(800);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   // Add state to track dragging
   const [isDragging, setIsDragging] = useState(false);
@@ -1275,74 +1276,127 @@ const ImageRender = () => {
     renderCanvas();
   }, [canvasWidth, renderCanvas]);
 
+  // Handle scroll events for the canvas
+  useEffect(() => {
+    const handleScroll = () => {
+      // Get the current scroll position
+      const scrollY = window.scrollY;
+
+      // Update scroll position state
+      setScrollPosition(scrollY);
+    };
+
+    // Add scroll event listener
+    window.addEventListener("scroll", handleScroll);
+
+    // Remove event listener on cleanup
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   return (
     <ImageRenderContext.Provider value={contextValue}>
-      {/* Canvas container with improved styling - removing sticky behavior */}
-      <div className="relative mx-auto bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md">
-        <h2 className="text-xl font-semibold mb-4 text-center">Canvas</h2>
+      {/* Canvas container with fixed positioning for scroll effect */}
+      <div className="relative mx-auto py-16">
+        {/* This outer div maintains space in the document flow */}
 
-        {/* Delete button for main image */}
-        {imageUrl && (
-          <button
-            className="absolute top-4 right-4 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
-            onClick={handleDeleteMainImage}
-            title="Remove image from canvas"
-          >
-            <Trash2 size={20} />
-          </button>
-        )}
+        {/* The fixed canvas wrapper with adjusted position - height now matches canvas exactly */}
+        <div
+          className="fixed bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md z-10"
+          style={{
+            left: `calc(50% - 150px)`, // Move 150px to the left of center
+            top: "30%", // Positioned higher in the viewport
+            transform: "translate(-50%, -50%)",
+            maxHeight: "60vh", // Keep space for navigation below
+            height: `${canvasWidth * 0.75 + 8}px`, // Match canvas height + minimal padding
+            width: `${canvasWidth + 32}px`,
+          }}
+        >
+          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
+            Canvas
+          </h2>
 
-        {/* Canvas with static positioning instead of flex */}
-        <div className="relative overflow-auto">
+          {/* Delete button for main image */}
+          {imageUrl && (
+            <button
+              className="absolute top-4 right-4 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
+              onClick={handleDeleteMainImage}
+              title="Remove image from canvas"
+            >
+              <Trash2 size={20} />
+            </button>
+          )}
+
+          {/* Canvas with fixed position */}
           <canvas
             ref={canvasRef}
-            className="w-full h-auto border rounded mx-auto"
+            className="border rounded-lg shadow-lg mx-auto block"
+            style={{
+              width: `${canvasWidth}px`,
+              height: `${canvasWidth * 0.75}px`,
+            }}
           />
+
           {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400">
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
               Select an image or add text to display
+            </div>
+          )}
+
+          {/* Controls overlay */}
+          <div className="flex gap-2 justify-end mt-4">
+            {logos.length > 0 && (
+              <button
+                onClick={() => selectLogo(null)}
+                className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
+                title="Deselect all logos"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21z" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Help text */}
+          {logos.some((logo) => logo.isSelected) && (
+            <div className="mt-2 text-xs text-gray-500">
+              <p>
+                Tip: Use arrow keys to move logo, +/- to resize, Delete to
+                remove
+              </p>
+            </div>
+          )}
+          {textOverlay.isVisible && textOverlay.text && (
+            <div className="mt-2 text-xs text-gray-500">
+              <p>Tip: Click and drag to position text</p>
             </div>
           )}
         </div>
 
-        {/* Controls overlay */}
-        <div className="absolute bottom-2 right-2 flex gap-2">
-          {logos.length > 0 && (
-            <button
-              onClick={() => selectLogo(null)}
-              className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
-              title="Deselect all logos"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21z" />
-              </svg>
-            </button>
-          )}
-        </div>
+        {/* This creates a spacer element - adjusted to match canvas height */}
+        <div
+          style={{
+            height: `${canvasWidth * 0.75 + 200}px`, // Keep this the same for document flow
+            width: `${canvasWidth}px`,
+            margin: "0 auto 0 calc(50% - 150px)",
+            transform: "translateX(-50%)",
+          }}
+        />
 
-        {/* Help text */}
-        {logos.some((logo) => logo.isSelected) && (
-          <div className="mt-2 text-xs text-gray-500">
-            <p>
-              Tip: Use arrow keys to move logo, +/- to resize, Delete to remove
-            </p>
-          </div>
-        )}
-        {textOverlay.isVisible && textOverlay.text && (
-          <div className="mt-2 text-xs text-gray-500">
-            <p>Tip: Click and drag to position text</p>
-          </div>
-        )}
+        {/* Keep bottom spacer for navigation */}
+        <div style={{ height: "180px" }} className="w-full" />
       </div>
     </ImageRenderContext.Provider>
   );
