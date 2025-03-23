@@ -1297,47 +1297,52 @@ const ImageRender = () => {
 
   return (
     <ImageRenderContext.Provider value={contextValue}>
-      {/* Canvas container with fixed positioning for scroll effect */}
-      <div className="relative mx-auto py-16">
-        {/* This outer div maintains space in the document flow */}
-
-        {/* The fixed canvas wrapper with adjusted position - height now matches canvas exactly */}
+      {/* Main container with proper spacing for toolbar */}
+      <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
+        {/* Fixed position canvas container - centered in viewport but positioned higher */}
         <div
-          className="fixed bg-white dark:bg-neutral-900 p-4 rounded-lg shadow-md z-10"
+          className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
           style={{
-            left: `calc(50% - 150px)`, // Move 150px to the left of center
-            top: "30%", // Positioned higher in the viewport
+            left: "calc(50% - 192px)",
+            top: "45%",
             transform: "translate(-50%, -50%)",
-            maxHeight: "60vh", // Keep space for navigation below
-            height: `${canvasWidth * 0.75 + 8}px`, // Match canvas height + minimal padding
-            width: `${canvasWidth + 32}px`,
+            height: `${canvasWidth * 0.75 + 16}px`,
+            width: `${canvasWidth}px`,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: "0 8px",
+            paddingBottom: "8px",
           }}
         >
-          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
+          {/* Added more top padding to the heading */}
+          <h2 className="text-xl font-semibold mb-4 mt-6 text-center text-gray-800 dark:text-white">
             Canvas
           </h2>
 
           {/* Delete button for main image */}
           {imageUrl && (
             <button
-              className="absolute top-4 right-4 p-2 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
+              className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
               onClick={handleDeleteMainImage}
               title="Remove image from canvas"
             >
-              <Trash2 size={20} />
+              <Trash2 size={16} />
             </button>
           )}
 
           {/* Canvas with fixed position */}
           <canvas
             ref={canvasRef}
-            className="border rounded-lg shadow-lg mx-auto block"
+            className="border rounded-lg shadow-lg"
             style={{
               width: `${canvasWidth}px`,
               height: `${canvasWidth * 0.75}px`,
             }}
           />
 
+          {/* Empty state message */}
           {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
             <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
               Select an image or add text to display
@@ -1385,18 +1390,17 @@ const ImageRender = () => {
           )}
         </div>
 
-        {/* This creates a spacer element - adjusted to match canvas height */}
+        {/* Spacer to maintain document flow - increased height to match new container size */}
         <div
           style={{
-            height: `${canvasWidth * 0.75 + 200}px`, // Keep this the same for document flow
+            height: `${canvasWidth * 0.75 + 48}px`, // Increased to account for larger header space
             width: `${canvasWidth}px`,
-            margin: "0 auto 0 calc(50% - 150px)",
-            transform: "translateX(-50%)",
+            margin: "0 auto",
           }}
         />
 
-        {/* Keep bottom spacer for navigation */}
-        <div style={{ height: "180px" }} className="w-full" />
+        {/* Increased bottom spacing to 300px for more space between canvas and navigation */}
+        <div style={{ height: "300px" }} className="w-full" />
       </div>
     </ImageRenderContext.Provider>
   );

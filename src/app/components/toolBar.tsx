@@ -33,13 +33,13 @@ const ToolBar = () => {
   } = useDesignStore();
 
   return (
-    <div className="bg-white dark:bg-neutral-950 rounded-lg shadow-md p-4 flex flex-col h-[calc(150vh-2rem)] max-h-[calc(150vh-2rem)] overflow-hidden">
-      <h2 className="text-xl font-semibold mb-4 text-center sticky top-0 bg-white dark:bg-neutral-950 z-10 py-2">
+    <div className="bg-white dark:bg-neutral-950 rounded-l-lg shadow-md flex flex-col h-screen fixed top-0 right-0 overflow-hidden w-80 md:w-96 border-l border-neutral-200 dark:border-neutral-800">
+      <h2 className="text-xl font-semibold text-center sticky top-0 bg-white dark:bg-neutral-950 z-10 py-3 px-4 border-b border-neutral-200 dark:border-neutral-900">
         Tools
       </h2>
 
-      {/* Scrollable content container */}
-      <div className="overflow-y-auto flex-grow pr-2 -mr-2 pb-4">
+      {/* Scrollable content container - takes full height */}
+      <div className="overflow-y-auto flex-grow px-4 pb-4">
         <HeaderControls />
         <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
 
@@ -89,7 +89,7 @@ const ToolBar = () => {
       </div>
 
       {/* Footer is outside the scrollable area - always visible at bottom */}
-      <div className="mt-auto pt-2 sticky bottom-0 bg-white dark:bg-neutral-950">
+      <div className="mt-auto sticky bottom-0 bg-white dark:bg-neutral-950 border-t border-neutral-200 dark:border-neutral-900 px-4 py-2">
         <Footer />
       </div>
     </div>
