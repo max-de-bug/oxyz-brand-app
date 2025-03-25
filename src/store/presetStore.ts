@@ -12,6 +12,7 @@ export interface Preset {
     contrast?: number;
     saturation?: number;
     sepia?: number;
+    opacity?: number;
   };
   isDefault: boolean;
   createdAt: string;
@@ -41,6 +42,14 @@ interface CloudinaryResponse {
   rate_limit_allowed?: number;
   rate_limit_remaining?: number;
   rate_limit_reset_at?: string;
+}
+
+interface Filter {
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+  sepia?: number;
+  opacity?: number;
 }
 
 interface PresetStore {
@@ -140,6 +149,7 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
                 contrast: parseFloat(filter.contrast) || 100,
                 saturation: parseFloat(filter.saturation) || 100,
                 sepia: parseFloat(filter.sepia) || 0,
+                opacity: parseFloat(filter.opacity) || 100,
               },
               isDefault:
                 resource.isDefault ||
@@ -233,6 +243,7 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
                 contrast: parseFloat(filter.contrast) || 100,
                 saturation: parseFloat(filter.saturation) || 100,
                 sepia: parseFloat(filter.sepia) || 0,
+                opacity: parseFloat(filter.opacity) || 100,
               },
               isDefault: resource.tags?.includes("default") || false,
               createdAt: resource.created_at,

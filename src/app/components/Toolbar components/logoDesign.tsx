@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import {
   Loader2,
   RefreshCw,
@@ -19,9 +19,10 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/app/store/auth-context";
 
 const LogoDesigns = () => {
-  const { data: session, status } = useSession();
+  const { session } = useAuth();
   const [showCloudinary, setShowCloudinary] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -47,11 +48,11 @@ const LogoDesigns = () => {
   } = useLogoStore();
 
   // Fetch logos when session changes
-  useEffect(() => {
-    if (session) {
-      fetchLogos();
-    }
-  }, [session, fetchLogos]);
+  // useEffect(() => {
+  //   if (session) {
+  //     fetchLogos();
+  //   }
+  // }, [session, fetchLogos]);
 
   // Fetch cloudinary logos when showCloudinary changes
   useEffect(() => {
@@ -128,9 +129,9 @@ const LogoDesigns = () => {
           </p>
           <Button
             variant="default"
-            onClick={() => (window.location.href = "/api/auth/signin")}
+            onClick={() => signIn("discord", { callbackUrl: "/" })}
           >
-            Sign In
+            Sign In with Discord
           </Button>
         </div>
 

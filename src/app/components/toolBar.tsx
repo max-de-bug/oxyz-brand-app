@@ -13,6 +13,7 @@ import Footer from "./Toolbar components/footer";
 import LogoDesigns from "./Toolbar components/logoDesign";
 import TypographyDesigns from "./Toolbar components/typographyDesigns";
 import ImageUploader from "./Toolbar components/imageUploader";
+import AspectRatioControls from "./Toolbar components/aspectRatioControls";
 
 const ToolBar = () => {
   const {
@@ -30,6 +31,7 @@ const ToolBar = () => {
     setMaxSize,
     spacing,
     setSpacing,
+    aspectRatio,
   } = useDesignStore();
 
   return (
@@ -44,6 +46,10 @@ const ToolBar = () => {
         <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
 
         <ColorPicker colorValue={colorValue} setColorValue={setColorValue} />
+
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+        <AspectRatioControls />
 
         <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 

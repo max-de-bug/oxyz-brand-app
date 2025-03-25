@@ -91,10 +91,10 @@ export const useLogoStore = create<LogoStore>((set, get) => ({
 
       // First try to get logos from the logos endpoint with cloudinary source
       try {
-        const data = await apiClient.getFromCloudinary<{
+        const data = await apiClient.get<{
           resources: Logo[];
           next_cursor: string | null;
-        }>("/logos", folder);
+        }>(`/logos/cloudinary?folder=${folder}`);
         console.log("data", data);
         set({
           cloudinaryLogos: data.resources,
@@ -106,11 +106,12 @@ export const useLogoStore = create<LogoStore>((set, get) => ({
         );
 
         // Fallback to general Cloudinary resources endpoint
-        const response =
-          await apiClient.getCloudinaryResources<CloudinaryResponse>(folder);
+        const response = await apiClient.get<CloudinaryResponse>(
+          `/cloudinary/resources?folder=${folder}`
+        );
 
         // Convert Cloudinary resources to our Logo format
-        const logos = response.resources.map((resource) => ({
+        const logos = response.resources.map((resource: any) => ({
           id: resource.public_id,
           url: resource.secure_url,
           filename: resource.public_id.split("/").pop() || resource.public_id,
@@ -147,12 +148,9 @@ export const useLogoStore = create<LogoStore>((set, get) => ({
 
     try {
       set({ loadingCloudinary: true, error: null });
-      const response =
-        await apiClient.getCloudinaryResources<CloudinaryResponse>(
-          "logos",
-          100,
-          nextCursor
-        );
+      const response = await apiClient.get<CloudinaryResponse>(
+        `/cloudinary/resources?folder=logos&max_results=100&next_cursor=${nextCursor}`
+      );
 
       // Convert Cloudinary resources to our Logo format
       const newLogos = response.resources.map((resource) => ({

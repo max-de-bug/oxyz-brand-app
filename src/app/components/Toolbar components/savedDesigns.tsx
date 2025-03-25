@@ -2,8 +2,11 @@
 import { Plus, Trash2, Loader2 } from "lucide-react";
 import { useDesignStore } from "../../store/designStore";
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useAuth } from "@/app/store/auth-context";
 
 const SavedDesigns = () => {
+  const { session } = useAuth();
   const {
     savedDesigns,
     saveCurrentDesign,
@@ -13,6 +16,8 @@ const SavedDesigns = () => {
     isLoading,
     imageId,
     currentDesignId,
+    loading,
+    error,
   } = useDesignStore();
   const [showConfirmDelete, setShowConfirmDelete] = useState<string | null>(
     null
@@ -20,8 +25,25 @@ const SavedDesigns = () => {
 
   // Fetch saved designs on component mount
   useEffect(() => {
-    fetchSavedDesigns();
-  }, [fetchSavedDesigns]);
+    // Only fetch designs if user is logged in
+    if (session?.user) {
+      fetchSavedDesigns().catch(console.error);
+    }
+  }, [session, fetchSavedDesigns]);
+
+  // Return early if user is not authenticated
+  if (!session) {
+    return (
+      <div className="p-4">
+        <h2 className="text-lg font-semibold mb-4">Saved Designs</h2>
+        <div className="text-center p-4 border border-dashed rounded">
+          <p className="text-sm text-gray-500">
+            Please sign in to access your saved designs
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle saving the current design
   const handleSaveDesign = async () => {
@@ -82,14 +104,24 @@ const SavedDesigns = () => {
   };
 
   return (
-    <div className="my-4">
-      <h2 className="text-xs font-medium mb-2">Saved Designs:</h2>
-      <div className="flex gap-2 flex-wrap">
-        {isLoading ? (
-          <div className="flex items-center justify-center w-8 h-8">
-            <Loader2 className="w-4 h-4 animate-spin" />
-          </div>
-        ) : (
+    <div className="p-4">
+      <h2 className="text-lg font-semibold mb-4">Saved Designs</h2>
+
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center p-4">
+          <Loader2 className="animate-spin" />
+        </div>
+      )}
+
+      {/* Error state */}
+      {error && !loading && (
+        <div className="text-red-500 p-2 rounded bg-red-50 mb-4">{error}</div>
+      )}
+
+      {/* Display designs */}
+      <div className="flex flex-wrap gap-2">
+        {!loading && !error && (
           <>
             {savedDesigns.map((design) => (
               <div key={design.id} className="relative">

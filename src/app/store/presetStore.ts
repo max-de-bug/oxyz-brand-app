@@ -12,6 +12,7 @@ export interface Preset {
     contrast?: number;
     saturation?: number;
     sepia?: number;
+    opacity?: number;
   };
   isDefault: boolean;
   createdAt: string;
@@ -140,6 +141,7 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
                 contrast: parseFloat(filter.contrast) || 100,
                 saturation: parseFloat(filter.saturation) || 100,
                 sepia: parseFloat(filter.sepia) || 0,
+                opacity: parseFloat(filter.opacity) || 100,
               },
               isDefault:
                 resource.isDefault ||
@@ -233,6 +235,7 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
                 contrast: parseFloat(filter.contrast) || 100,
                 saturation: parseFloat(filter.saturation) || 100,
                 sepia: parseFloat(filter.sepia) || 0,
+                opacity: parseFloat(filter.opacity) || 100,
               },
               isDefault: resource.tags?.includes("default") || false,
               createdAt: resource.created_at,

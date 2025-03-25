@@ -61,31 +61,59 @@ const ImageRender = () => {
     updateLogo,
     deleteLogo,
     clearMainImage,
+    opacity,
   } = useImageStore();
 
-  // Get text overlay from design store
-  const { textOverlay, setTextOverlay, selectText, deleteText } =
+  // Get text overlay and aspect ratio from design store
+  const { textOverlay, setTextOverlay, selectText, deleteText, aspectRatio } =
     useDesignStore();
 
-  // Adjust canvas size based on viewport width
+  // Inside the ImageRender component, add this right after your other state declarations
+  const { aspectRatio: designStoreAspectRatio } = useDesignStore();
+
+  // Add this debug useEffect to track opacity changes
+  useEffect(() => {
+    console.log("Current opacity value:", opacity);
+  }, [opacity]);
+
+  // Adjust canvas size based on viewport width and image dimensions
   useEffect(() => {
     const updateCanvasSize = () => {
       // Calculate available width (accounting for toolbar and padding)
       const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
-      // On larger screens, make canvas narrower to leave space for toolbar
+      // Parse aspect ratio
+      const [widthRatio, heightRatio] = designStoreAspectRatio
+        .split(":")
+        .map(Number);
+      const ratio = widthRatio / heightRatio;
+
+      // Determine base width with larger sizes
+      let baseWidth;
       if (viewportWidth >= 1280) {
         // xl breakpoint
-        setCanvasWidth(Math.min(900, viewportWidth * 0.5)); // 50% of viewport width, max 900px
+        baseWidth = Math.min(1200, viewportWidth * 0.6);
       } else if (viewportWidth >= 1024) {
         // lg breakpoint
-        setCanvasWidth(Math.min(800, viewportWidth * 0.55)); // 55% of viewport width, max 800px
+        baseWidth = Math.min(1000, viewportWidth * 0.65);
       } else if (viewportWidth >= 768) {
         // md breakpoint
-        setCanvasWidth(Math.min(700, viewportWidth * 0.65)); // 65% of viewport width, max 700px
+        baseWidth = Math.min(800, viewportWidth * 0.75);
       } else {
-        setCanvasWidth(Math.min(600, viewportWidth * 0.85)); // 85% of viewport width, max 600px
+        baseWidth = Math.min(700, viewportWidth * 0.85);
       }
+
+      // Calculate height based on ratio while ensuring it fits in viewport
+      const calculatedHeight = baseWidth / ratio;
+      const maxHeight = viewportHeight * 0.8; // Maximum 80% of viewport height
+
+      // Adjust width if height exceeds maximum
+      if (calculatedHeight > maxHeight) {
+        baseWidth = maxHeight * ratio;
+      }
+
+      setCanvasWidth(baseWidth);
     };
 
     // Initial size calculation
@@ -94,7 +122,7 @@ const ImageRender = () => {
     // Update on resize
     window.addEventListener("resize", updateCanvasSize);
     return () => window.removeEventListener("resize", updateCanvasSize);
-  }, []);
+  }, [designStoreAspectRatio]);
 
   // Memoize the calculateLogoRects function to prevent unnecessary recalculations
   const calculateLogoRects = useCallback(
@@ -185,6 +213,7 @@ const ImageRender = () => {
     if (imageUrl) {
       console.log("Loading main image from URL:", imageUrl);
       const img = new Image();
+
       // Set crossOrigin before setting src
       img.crossOrigin = "anonymous";
 
@@ -196,12 +225,12 @@ const ImageRender = () => {
           height: img.height,
         });
         setMainImage(img);
+
         // Force a render after the image is loaded with increased delay
-        // to ensure the canvas has time to update
         setTimeout(() => {
+          console.log("Canvas rendered after image load, opacity:", opacity);
           renderCanvas();
-          console.log("Canvas rendered after image load");
-        }, 200); // Increased from 100ms to 200ms for more reliability
+        }, 200);
       };
 
       img.onerror = (err) => {
@@ -209,8 +238,17 @@ const ImageRender = () => {
         setMainImage(null);
       };
 
+      // For Cloudinary URLs, ensure no caching parameters that might interfere with rendering
+      let imageSrc = imageUrl;
+      if (imageUrl.includes("cloudinary.com")) {
+        // Ensure we're not getting a cached version
+        imageSrc = `${imageUrl}${
+          imageUrl.includes("?") ? "&" : "?"
+        }t=${new Date().getTime()}`;
+      }
+
       // Set src after setting up event handlers
-      img.src = imageUrl;
+      img.src = imageSrc;
     } else {
       console.log("No image URL provided, clearing main image");
       setMainImage(null);
@@ -270,28 +308,43 @@ const ImageRender = () => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Parse aspect ratio
+    const [widthRatio, heightRatio] = designStoreAspectRatio
+      .split(":")
+      .map(Number);
+    const ratio = widthRatio / heightRatio;
 
     // Set canvas dimensions
     canvas.width = canvasWidth;
-    canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
+    canvas.height = canvasWidth / ratio;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw main image if available
     if (mainImage) {
-      // Set canvas dimensions to match image aspect ratio
-      const aspectRatio = mainImage.width / mainImage.height;
-      if (aspectRatio > 1) {
-        // Landscape
-        canvas.width = canvasWidth;
-        canvas.height = canvasWidth / aspectRatio;
+      // Calculate image scaling to maintain aspect ratio
+      const imageRatio = mainImage.width / mainImage.height;
+      let drawWidth = canvas.width;
+      let drawHeight = canvas.height;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      // Adjust dimensions to prevent stretching
+      if (imageRatio > ratio) {
+        // Image is wider than canvas ratio
+        drawHeight = canvas.width / imageRatio;
+        offsetY = (canvas.height - drawHeight) / 2;
       } else {
-        // Portrait
-        canvas.height = canvasWidth * 0.75;
-        canvas.width = canvas.height * aspectRatio;
+        // Image is taller than canvas ratio
+        drawWidth = canvas.height * imageRatio;
+        offsetX = (canvas.width - drawWidth) / 2;
       }
 
-      // Apply filters to main image
+      // Save context state
+      ctx.save();
+
+      // Apply filters
       ctx.filter = `
         brightness(${brightness}%) 
         contrast(${contrast}%) 
@@ -299,15 +352,16 @@ const ImageRender = () => {
         sepia(${sepia}%)
       `;
 
-      // Draw main image
-      ctx.drawImage(mainImage, 0, 0, canvas.width, canvas.height);
+      // Set opacity
+      ctx.globalAlpha = opacity / 100;
 
-      // Reset filter for logos and text
-      ctx.filter = "none";
+      // Draw image with proper scaling
+      ctx.drawImage(mainImage, offsetX, offsetY, drawWidth, drawHeight);
+
+      // Restore context state
+      ctx.restore();
     } else {
-      // If no main image, ensure canvas still has proper dimensions for text and logos
-      // Keep the default dimensions set above (canvasWidth × canvasWidth*0.75)
-      // Fill with a light background so text is visible
+      // Background for empty canvas
       ctx.fillStyle = "#f9f9f9";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -478,6 +532,7 @@ const ImageRender = () => {
     contrast,
     saturation,
     sepia,
+    opacity,
     hoveredLogoId,
     calculateLogoRects,
     canvasWidth,
@@ -487,6 +542,7 @@ const ImageRender = () => {
     calculateTextRect,
     mouseX,
     mouseY,
+    designStoreAspectRatio,
   ]);
 
   // Force a complete render of the canvas
@@ -659,6 +715,7 @@ const ImageRender = () => {
     contrast,
     saturation,
     sepia,
+    opacity,
     hoveredLogoId,
     textOverlay,
     textPosition,
@@ -1248,8 +1305,6 @@ const ImageRender = () => {
 
   // Initialize canvas when component mounts
   useEffect(() => {
-    console.log("Initializing canvas...");
-
     if (!canvasRef.current) {
       console.error("Canvas reference is not available during initialization");
       return;
@@ -1266,11 +1321,6 @@ const ImageRender = () => {
     if (ctx) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
-
-    console.log("Canvas initialized with dimensions:", {
-      width: canvas.width,
-      height: canvas.height,
-    });
 
     // Initial render
     renderCanvas();
@@ -1297,31 +1347,32 @@ const ImageRender = () => {
 
   return (
     <ImageRenderContext.Provider value={contextValue}>
-      {/* Main container with proper spacing for toolbar */}
       <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
-        {/* Fixed position canvas container - centered in viewport but positioned higher */}
         <div
           className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
           style={{
             left: "calc(50% - 192px)",
-            top: "45%",
+            top: "50%",
             transform: "translate(-50%, -50%)",
-            height: `${canvasWidth * 0.75 + 16}px`,
+            height: "auto",
+            minHeight: `${
+              canvasWidth /
+              (designStoreAspectRatio.split(":").map(Number)[0] /
+                designStoreAspectRatio.split(":").map(Number)[1])
+            }px`,
             width: `${canvasWidth}px`,
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
             alignItems: "center",
-            padding: "0 8px",
-            paddingBottom: "8px",
+            padding: "16px",
+            margin: "20px auto",
           }}
         >
-          {/* Added more top padding to the heading */}
-          <h2 className="text-xl font-semibold mb-4 mt-6 text-center text-gray-800 dark:text-white">
+          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
             Canvas
           </h2>
 
-          {/* Delete button for main image */}
           {imageUrl && (
             <button
               className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
@@ -1332,15 +1383,16 @@ const ImageRender = () => {
             </button>
           )}
 
-          {/* Canvas with fixed position */}
-          <canvas
-            ref={canvasRef}
-            className="border rounded-lg shadow-lg"
-            style={{
-              width: `${canvasWidth}px`,
-              height: `${canvasWidth * 0.75}px`,
-            }}
-          />
+          <div className="relative w-full">
+            <canvas
+              ref={canvasRef}
+              className="w-full h-auto rounded-lg shadow-lg"
+              style={{
+                maxWidth: "100%",
+                objectFit: "contain",
+              }}
+            />
+          </div>
 
           {/* Empty state message */}
           {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
@@ -1390,17 +1442,19 @@ const ImageRender = () => {
           )}
         </div>
 
-        {/* Spacer to maintain document flow - increased height to match new container size */}
+        {/* Spacer with dynamic height */}
         <div
           style={{
-            height: `${canvasWidth * 0.75 + 48}px`, // Increased to account for larger header space
+            height: `${
+              canvasWidth /
+                (designStoreAspectRatio.split(":").map(Number)[0] /
+                  designStoreAspectRatio.split(":").map(Number)[1]) +
+              100
+            }px`,
             width: `${canvasWidth}px`,
             margin: "0 auto",
           }}
         />
-
-        {/* Increased bottom spacing to 300px for more space between canvas and navigation */}
-        <div style={{ height: "300px" }} className="w-full" />
       </div>
     </ImageRenderContext.Provider>
   );

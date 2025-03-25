@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { apiClient } from "@/lib/api-client";
-
 interface Logo {
   id: string;
   url: string;

@@ -47,11 +47,15 @@ interface DesignState {
   selectedPreset: PresetFilter;
   imageUrl: string;
   textOverlay: TextOverlay;
-  savedDesigns: Design[]; // Store actual Design objects from the API
+  savedDesigns: Design[];
   isLoading: boolean;
   imageId: string | null;
   logoId: string | null;
-  currentDesignId: string | null; // Track the currently loaded design
+  currentDesignId: string | null;
+  designs: Design[];
+  loading: boolean;
+  error: string | null;
+  aspectRatio: string;
 
   setRotation: (rotation: number) => void;
   setColorValue: (colorValue: string) => void;
@@ -66,8 +70,8 @@ interface DesignState {
   setTextOverlay: (updates: Partial<TextOverlay>) => void;
   selectText: (selected: boolean) => void;
   deleteText: () => void;
+  setAspectRatio: (ratio: string) => void;
 
-  // Methods for saved designs
   fetchSavedDesigns: () => Promise<void>;
   saveCurrentDesign: (name?: string) => Promise<Design>;
   loadSavedDesign: (designId: string) => Promise<void>;
@@ -211,6 +215,10 @@ export const useDesignStore = create<DesignState>((set, get) => {
     imageId: null,
     logoId: null,
     currentDesignId: null,
+    designs: [],
+    loading: false,
+    error: null,
+    aspectRatio: "4:3",
 
     setRotation: (rotation) => set({ rotation }),
     setColorValue: (colorValue) => set({ colorValue }),
@@ -251,67 +259,23 @@ export const useDesignStore = create<DesignState>((set, get) => {
           isSelected: false,
         },
       })),
+    setAspectRatio: (ratio) => set({ aspectRatio: ratio }),
 
-    // Fetch saved designs from the API
     fetchSavedDesigns: async () => {
+      set({ loading: true, error: null });
       try {
-        // Don't set loading state if we already have designs
-        // This prevents UI flicker when refreshing the list
-        const hasExistingDesigns = get().savedDesigns.length > 0;
-        if (!hasExistingDesigns) {
-          set({ isLoading: true });
-        }
-
-        console.log("Fetching saved designs");
-        const designs = await DesignsService.getDesigns();
-
-        // Process designs based on their source
-        const processedDesigns = designs.map((design) => {
-          // For Cloudinary designs, ensure they have the necessary properties
-          if (design.source === "cloudinary") {
-            // Parse designState if it's a string
-            const designState =
-              typeof design.designState === "string"
-                ? JSON.parse(design.designState)
-                : design.designState || {};
-
-            // Ensure the design has the necessary properties
-            return {
-              ...design,
-              preset: designState.preset || presetFilters[0],
-              textOverlay: designState.textOverlay || {
-                text: "",
-                fontSize: 24,
-                color: "#ffffff",
-                fontFamily: "Space Grotesk",
-                isBold: false,
-                isItalic: false,
-                isVisible: false,
-                isSelected: false,
-              },
-              position: designState.position || {
-                translationX: 0,
-                translationY: 0,
-                rotation: 0,
-                minSize: 0,
-                maxSize: 100,
-                spacing: 0,
-              },
-            };
-          }
-
-          return design;
-        });
-
-        console.log(`Fetched ${processedDesigns.length} designs`);
-        set({ savedDesigns: processedDesigns, isLoading: false });
+        const response = await apiClient.get<Design[]>("/designs");
+        set({ savedDesigns: response, loading: false });
       } catch (error) {
-        console.error("Error fetching saved designs:", error);
-        set({ isLoading: false });
+        console.error("Error fetching designs:", error);
+        set({
+          loading: false,
+          error: "Failed to load designs. Please try again.",
+          savedDesigns: [],
+        });
       }
     },
 
-    // Save current design state to the API
     saveCurrentDesign: async (name?: string) => {
       try {
         set({ isLoading: true });
@@ -449,7 +413,6 @@ export const useDesignStore = create<DesignState>((set, get) => {
       }
     },
 
-    // Load a saved design
     loadSavedDesign: async (designId) => {
       try {
         set({ isLoading: true });
@@ -489,7 +452,6 @@ export const useDesignStore = create<DesignState>((set, get) => {
       }
     },
 
-    // Delete a saved design
     deleteSavedDesign: async (designId) => {
       try {
         set({ isLoading: true });

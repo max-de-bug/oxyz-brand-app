@@ -5,9 +5,10 @@ import { ImageIcon, Plus, Loader2, Type, RefreshCw, Cloud } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
 import { useTypographyStore } from "@/store/typographyStore";
+import { useAuth } from "@/app/store/auth-context";
 
 const TypographyDesigns = () => {
-  const { data: session } = useSession();
+  const { session } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showCloudinary, setShowCloudinary] = useState(false);
 
@@ -30,12 +31,6 @@ const TypographyDesigns = () => {
     deleteTypography,
     setTextSize,
   } = useTypographyStore();
-
-  useEffect(() => {
-    if (session) {
-      fetchTypography();
-    }
-  }, [session, fetchTypography]);
 
   useEffect(() => {
     if (session && showCloudinary) {

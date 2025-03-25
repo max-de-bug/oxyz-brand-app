@@ -1,90 +1,27 @@
 import { API_BASE_URL } from "@/config";
-import { getSession } from "next-auth/react";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 
-// Helper to format the endpoint
-const formatEndpoint = (endpoint: string): string => {
-  // If the endpoint already starts with http, return it as is
-  if (endpoint.startsWith("http")) {
-    return endpoint;
-  }
-
-  // Otherwise, prepend the API base URL
-  return `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
+const formatEndpoint = (endpoint: string) => {
+  // Make sure endpoint starts with a slash
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${path}`;
 };
 
-// Helper to get the auth token from the session
-const getAuthToken = (session: any): string | null => {
-  // Debug logging
-  console.log("Session object:", JSON.stringify(session, null, 2));
+const getAuthHeaders = async () => {
+  const supabase = createClientComponentClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  // Try to get the token from different possible locations in the session object
-  if (session?.accessToken) {
-    console.log("Using session.accessToken:", session.accessToken);
-    return session.accessToken;
-  }
-  if (session?.user?.accessToken) {
-    console.log("Using session.user.accessToken:", session.user.accessToken);
-    return session.user.accessToken;
-  }
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
 
-  // Additional checks for other possible token locations
-  if (session?.token) {
-    console.log("Using session.token:", session.token);
-    return session.token;
-  }
   if (session?.access_token) {
-    console.log("Using session.access_token:", session.access_token);
-    return session.access_token;
-  }
-  if (session?.user?.token) {
-    console.log("Using session.user.token:", session.user.token);
-    return session.user.token;
+    headers["Authorization"] = `Bearer ${session.access_token}`;
   }
 
-  // Check if we have a token in localStorage as last resort
-  const storedToken = localStorage.getItem("auth_token");
-  if (storedToken) {
-    console.log("Using token from localStorage");
-    return storedToken;
-  }
-
-  // If we have an email, try to get a token from the backend
-  if (session?.user?.email) {
-    console.log(
-      "No token found, but have email. Will try to get token from backend."
-    );
-
-    // We'll try to get a token asynchronously, but for now return the email as fallback
-    (async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/login`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email: session.user.email }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (data.access_token) {
-            console.log("Got access token from backend:", data.access_token);
-            // Store the token for future use
-            localStorage.setItem("auth_token", data.access_token);
-            // Force a page refresh to use the new token
-            window.location.reload();
-          }
-        }
-      } catch (error) {
-        console.error("Error getting access token from backend:", error);
-      }
-    })();
-
-    return session.user.email; // Fallback to email as token
-  }
-
-  console.log("No token found in session");
-  return null;
+  return headers;
 };
 
 export const apiClient = {
@@ -92,126 +29,128 @@ export const apiClient = {
    * Make a GET request to the API
    */
   async get<T>(endpoint: string): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    const headers: Record<string, string> = {};
+      const response = await fetch(url, { headers });
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-      console.log("Request URL:", url);
-      console.log("Request headers:", headers);
-    } else {
-      console.log("No authorization header added - no token found");
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        console.error("API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          url: url,
+        });
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error fetching ${endpoint}:`, error);
+      throw error;
     }
-
-    const response = await fetch(url, {
-      headers,
-    });
-
-    if (!response.ok) {
-      console.error("API Error Response:", {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
 
   /**
    * Make a POST request to the API
    */
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+  async post<T>(endpoint: string, data: any): Promise<T> {
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(data),
+      });
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        console.error("API Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+        });
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error posting to ${endpoint}:`, error);
+      throw error;
     }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
 
   /**
    * Make a PUT request to the API
    */
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+  async put<T>(endpoint: string, data: any): Promise<T> {
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+      const response = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(data),
+      });
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error putting to ${endpoint}:`, error);
+      throw error;
     }
-
-    const response = await fetch(url, {
-      method: "PUT",
-      headers,
-      body: data ? JSON.stringify(data) : undefined,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
 
   /**
    * Make a DELETE request to the API
    */
   async delete<T>(endpoint: string): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    const headers: Record<string, string> = {};
+      const response = await fetch(url, {
+        method: "DELETE",
+        headers,
+      });
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error deleting ${endpoint}:`, error);
+      throw error;
     }
-
-    const response = await fetch(url, {
-      method: "DELETE",
-      headers,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
 
   /**
@@ -222,79 +161,75 @@ export const apiClient = {
     file: File,
     additionalData?: Record<string, any>
   ): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    const headers: Record<string, string> = {};
+      const formData = new FormData();
+      formData.append("file", file);
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
+      if (additionalData) {
+        Object.entries(additionalData).forEach(([key, value]) => {
+          formData.append(key, value);
+        });
+      }
 
-    const formData = new FormData();
-    formData.append("file", file);
+      // Remove Content-Type from headers as it's set automatically for FormData
+      delete headers["Content-Type"];
 
-    // Add any additional data to the form
-    if (additionalData) {
-      Object.entries(additionalData).forEach(([key, value]) => {
-        if (typeof value === "object") {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, String(value));
-        }
+      const response = await fetch(url, {
+        method: "POST",
+        headers,
+        body: formData,
       });
+
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error uploading file to ${endpoint}:`, error);
+      throw error;
     }
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
 
   /**
-   * Make a custom request to the API
+   * Make a PATCH request to the API
    */
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = formatEndpoint(endpoint);
-    const session = await getSession();
+  async patch<T>(endpoint: string, data: any): Promise<T> {
+    try {
+      const url = formatEndpoint(endpoint);
+      const headers = await getAuthHeaders();
 
-    // Define headers with a more flexible type
-    const headers: Record<string, string> = {
-      ...((options.headers as Record<string, string>) || {}),
-    };
+      const response = await fetch(url, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify(data),
+      });
 
-    // Add auth header if we have a session
-    const token = getAuthToken(session);
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      if (response.status === 401) {
+        window.location.href = "/auth/sign-in";
+        throw new Error("Authentication required");
+      }
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.message || `API error: ${response.status}`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error(`Error patching ${endpoint}:`, error);
+      throw error;
     }
-
-    const config = {
-      ...options,
-      headers,
-    };
-
-    const response = await fetch(url, config);
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new Error(error.message || `API error: ${response.status}`);
-    }
-
-    return response.json();
   },
-
-  // Fetch resources from Cloudinary by folder
   getCloudinaryResources: async <T>(
     folder: string,
     maxResults?: number,

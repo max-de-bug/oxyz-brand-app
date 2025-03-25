@@ -17,9 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/app/store/auth-context";
 
 const PresetDesigns = () => {
-  const { data: session } = useSession();
+  const { session } = useAuth();
   const [showCloudinary, setShowCloudinary] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newPreset, setNewPreset] = useState<Partial<Preset>>({
@@ -29,10 +30,11 @@ const PresetDesigns = () => {
       contrast: 100,
       saturation: 100,
       sepia: 0,
+      opacity: 100,
     },
   });
 
-  const { setImage, setFilter } = useImageStore();
+  const { setImage, setFilter, opacity } = useImageStore();
 
   const {
     presets,
@@ -71,6 +73,10 @@ const PresetDesigns = () => {
           contrast: selectedPreset.filter.contrast || 100,
           saturation: selectedPreset.filter.saturation || 100,
           sepia: selectedPreset.filter.sepia || 0,
+          opacity:
+            selectedPreset.filter.opacity !== undefined
+              ? selectedPreset.filter.opacity
+              : 100,
         });
       }
 
@@ -89,7 +95,14 @@ const PresetDesigns = () => {
         contrast: preset.filter.contrast || 100,
         saturation: preset.filter.saturation || 100,
         sepia: preset.filter.sepia || 0,
+        opacity:
+          preset.filter.opacity !== undefined ? preset.filter.opacity : 100,
       });
+
+      console.log(
+        "Applied filter with opacity:",
+        preset.filter.opacity !== undefined ? preset.filter.opacity : 100
+      );
     }
 
     if (preset.url) {
@@ -113,6 +126,7 @@ const PresetDesigns = () => {
           contrast: 100,
           saturation: 100,
           sepia: 0,
+          opacity: 100,
         },
       });
     } catch (error) {
@@ -274,6 +288,31 @@ const PresetDesigns = () => {
                 }
               />
             </div>
+
+            <div>
+              <Label htmlFor="opacity" className="text-xs mb-1 block">
+                Opacity: {newPreset.filter?.opacity}%
+              </Label>
+              <Slider
+                id="opacity"
+                value={[newPreset.filter?.opacity || 100]}
+                min={0}
+                max={100}
+                step={5}
+                onValueChange={(value) => {
+                  console.log("Opacity slider changed to:", value[0]);
+
+                  // Update the new preset state
+                  setNewPreset({
+                    ...newPreset,
+                    filter: { ...newPreset.filter, opacity: value[0] },
+                  });
+
+                  // Also apply the opacity to the current image in real-time
+                  setFilter({ opacity: value[0] });
+                }}
+              />
+            </div>
           </div>
 
           <div className="mt-4">
@@ -307,6 +346,7 @@ const PresetDesigns = () => {
                   saturate(${newPreset.filter?.saturation || 100}%) 
                   sepia(${newPreset.filter?.sepia || 0}%)
                 `,
+                opacity: `${(newPreset.filter?.opacity || 100) / 100}`,
               }}
             ></div>
           </div>
@@ -357,6 +397,7 @@ const PresetDesigns = () => {
                           saturate(${preset.filter?.saturation || 100}%) 
                           sepia(${preset.filter?.sepia || 0}%)
                         `,
+                        opacity: `${(preset.filter?.opacity || 100) / 100}`,
                       }}
                       onClick={() => handlePresetClick(preset)}
                     />
@@ -371,6 +412,7 @@ const PresetDesigns = () => {
                         saturate(${preset.filter?.saturation || 100}%) 
                         sepia(${preset.filter?.sepia || 0}%)
                       `,
+                      opacity: `${(preset.filter?.opacity || 100) / 100}`,
                     }}
                     onClick={() => handlePresetClick(preset)}
                   ></div>
@@ -381,6 +423,7 @@ const PresetDesigns = () => {
                   <div>Contrast: {preset.filter?.contrast || 100}%</div>
                   <div>Saturation: {preset.filter?.saturation || 100}%</div>
                   <div>Sepia: {preset.filter?.sepia || 0}%</div>
+                  <div>Opacity: {preset.filter?.opacity || 100}%</div>
                 </div>
 
                 <div className="flex gap-1 mb-2">
@@ -392,7 +435,18 @@ const PresetDesigns = () => {
                           contrast: preset.filter.contrast || 100,
                           saturation: preset.filter.saturation || 100,
                           sepia: preset.filter.sepia || 0,
+                          opacity:
+                            preset.filter.opacity !== undefined
+                              ? preset.filter.opacity
+                              : 100,
                         });
+
+                        console.log(
+                          "Applied filter with opacity:",
+                          preset.filter.opacity !== undefined
+                            ? preset.filter.opacity
+                            : 100
+                        );
                       }
                     }}
                     className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700"

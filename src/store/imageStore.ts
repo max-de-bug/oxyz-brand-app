@@ -17,6 +17,14 @@ export interface CanvasLogo {
   isSelected: boolean;
 }
 
+interface Filter {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sepia: number;
+  opacity: number;
+}
+
 interface ImageState {
   // Main image source
   imageUrl: string | null;
@@ -29,6 +37,7 @@ interface ImageState {
   contrast: number;
   saturation: number;
   sepia: number;
+  opacity: number;
 
   // Saved images
   savedImages: SavedImage[];
@@ -47,6 +56,7 @@ interface ImageState {
       contrast: number;
       saturation: number;
       sepia: number;
+      opacity: number;
     }>
   ) => void;
   resetFilter: () => void;
@@ -67,6 +77,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
   contrast: 100,
   saturation: 100,
   sepia: 0,
+  opacity: 100,
 
   // Actions
   setImage: (url) => set({ imageUrl: url }),
@@ -140,11 +151,19 @@ export const useImageStore = create<ImageState>((set, get) => ({
       return { logos: newLogos };
     }),
 
-  setFilter: (filter) =>
+  setFilter: (filter) => {
+    console.log("Setting filter with values:", filter);
     set((state) => ({
-      ...state,
-      ...filter,
-    })),
+      brightness:
+        filter.brightness !== undefined ? filter.brightness : state.brightness,
+      contrast:
+        filter.contrast !== undefined ? filter.contrast : state.contrast,
+      saturation:
+        filter.saturation !== undefined ? filter.saturation : state.saturation,
+      sepia: filter.sepia !== undefined ? filter.sepia : state.sepia,
+      opacity: filter.opacity !== undefined ? filter.opacity : state.opacity,
+    }));
+  },
 
   resetFilter: () =>
     set((state) => ({
@@ -153,6 +172,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
       contrast: 100,
       saturation: 100,
       sepia: 0,
+      opacity: 100,
     })),
 
   clearLogos: () => set({ logos: [] }),
@@ -166,6 +186,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
       contrast: 100,
       saturation: 100,
       sepia: 0,
+      opacity: 100,
     });
   },
 

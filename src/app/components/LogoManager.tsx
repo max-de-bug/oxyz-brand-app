@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import { useImageStore, CanvasLogo } from "@/app/store/imageStore";
 import {
   Trash2,

@@ -5,10 +5,11 @@ import { Loader2, Upload, Plus, Trash2, RefreshCw, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useImageStore } from "@/app/store/imageStore";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
+import { useAuth } from "@/app/store/auth-context";
 
 const ImageUploader = () => {
-  const { data: session, status } = useSession();
+  const { session } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const {
@@ -116,9 +117,9 @@ const ImageUploader = () => {
         </p>
         <Button
           variant="default"
-          onClick={() => (window.location.href = "/api/auth/signin")}
+          onClick={() => signIn("discord", { callbackUrl: "/" })}
         >
-          Sign In
+          Sign In with Discord
         </Button>
       </div>
     ),
@@ -177,13 +178,26 @@ const ImageUploader = () => {
         <div className="mb-4">
           <h3 className="text-sm font-medium mb-2">Current Image</h3>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="default" className="flex items-center gap-1">
+            <Badge variant="default" className="flex items-center gap-1 pr-1">
               <img
                 src={imageUrl}
                 alt="Current"
                 className="w-4 h-4 object-contain"
               />
-              <span className="max-w-[60px] truncate">Current</span>
+              <span className="max-w-[100px] truncate">
+                {imageUrl.split("/").pop()?.split("?")[0] || "Image"}
+              </span>
+              <button
+                onClick={() => {
+                  if (confirm("Remove this image from canvas?")) {
+                    setImage(""); // Clear the current image
+                  }
+                }}
+                className="ml-1 text-red-400 hover:text-red-600 p-1 rounded-full"
+                title="Remove from canvas"
+              >
+                <Trash2 size={12} />
+              </button>
             </Badge>
           </div>
         </div>

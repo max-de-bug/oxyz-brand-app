@@ -17,6 +17,14 @@ export interface CanvasLogo {
   isSelected: boolean;
 }
 
+export interface Filter {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+  sepia: number;
+  opacity: number;
+}
+
 interface ImageState {
   imageUrl: string | null;
   logos: CanvasLogo[];
@@ -25,6 +33,7 @@ interface ImageState {
   contrast: number;
   saturation: number;
   sepia: number;
+  opacity: number;
 
   // Actions
   setImage: (url: string) => void;
@@ -34,14 +43,7 @@ interface ImageState {
   selectLogo: (id: string | null) => void;
   deleteLogo: (id: string) => void;
   reorderLogos: (fromIndex: number, toIndex: number) => void;
-  setFilter: (
-    filter: Partial<{
-      brightness: number;
-      contrast: number;
-      saturation: number;
-      sepia: number;
-    }>
-  ) => void;
+  setFilter: (filter: Partial<Filter>) => void;
   resetFilter: () => void;
   clearLogos: () => void;
   clearSavedImages: () => void;
@@ -61,6 +63,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
   contrast: 100,
   saturation: 100,
   sepia: 0,
+  opacity: 100,
 
   // Actions
   setImage: (url) => {
@@ -129,9 +132,17 @@ export const useImageStore = create<ImageState>((set, get) => ({
     });
   },
 
-  setFilter: (filter) => {
-    set((state) => ({ ...state, ...filter }));
-  },
+  setFilter: (filter: Partial<Filter>) =>
+    set((state) => ({
+      brightness:
+        filter.brightness !== undefined ? filter.brightness : state.brightness,
+      contrast:
+        filter.contrast !== undefined ? filter.contrast : state.contrast,
+      saturation:
+        filter.saturation !== undefined ? filter.saturation : state.saturation,
+      sepia: filter.sepia !== undefined ? filter.sepia : state.sepia,
+      opacity: filter.opacity !== undefined ? filter.opacity : state.opacity,
+    })),
 
   resetFilter: () => {
     set({
@@ -139,6 +150,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
       contrast: 100,
       saturation: 100,
       sepia: 0,
+      opacity: 100,
     });
   },
 
@@ -159,6 +171,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
       contrast: 100,
       saturation: 100,
       sepia: 0,
+      opacity: 100,
     });
   },
 
