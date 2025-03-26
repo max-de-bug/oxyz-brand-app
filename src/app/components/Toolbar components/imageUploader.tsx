@@ -28,7 +28,7 @@ const ImageUploader = () => {
 
     setLoading(true);
     try {
-      await fetchCloudinaryImages();
+      await fetchCloudinaryImages(session.user.id);
     } catch (error) {
       console.error("Error loading images:", error);
       alert("Failed to load images. Please try again.");
@@ -89,7 +89,7 @@ const ImageUploader = () => {
         await deleteImage(id);
 
         // Refresh the image list
-        await fetchCloudinaryImages();
+        await fetchCloudinaryImages(session.user.id);
 
         // Show success message
         alert("Image deleted successfully");
@@ -213,7 +213,7 @@ const ImageUploader = () => {
           ) : savedImages.length > 0 ? (
             savedImages.map((image) => (
               <div
-                key={image.id}
+                key={image.publicId}
                 className={`relative p-2 border rounded ${
                   imageUrl === image.url ? "border-blue-500" : "border-gray-200"
                 }`}

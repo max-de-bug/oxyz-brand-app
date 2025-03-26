@@ -8,6 +8,7 @@ export interface SavedImage {
   id: string;
   url: string;
   filename?: string;
+  publicId?: string;
 }
 
 export interface CanvasLogo {
@@ -35,6 +36,8 @@ interface ImageState {
   saturation: number;
   sepia: number;
   opacity: number;
+  isLoading: boolean;
+  error: string | null;
 
   // Actions
   setImage: (url: string) => void;
@@ -52,7 +55,9 @@ interface ImageState {
   uploadImage: (file: File) => Promise<void>;
   deleteImage: (id: string) => Promise<void>;
   fetchSavedImages: () => Promise<void>;
-  fetchCloudinaryImages: (folder?: string) => Promise<void>;
+  fetchCloudinaryImages: (userId: string) => Promise<void>;
+  fetchUserImages: () => Promise<void>;
+  clearError: () => void;
 }
 
 export const useImageStore = create<ImageState>((set, get) => ({
@@ -65,6 +70,8 @@ export const useImageStore = create<ImageState>((set, get) => ({
   saturation: 100,
   sepia: 0,
   opacity: 100,
+  isLoading: false,
+  error: null,
 
   // Actions
   setImage: (url) => {
@@ -193,64 +200,37 @@ export const useImageStore = create<ImageState>((set, get) => ({
     });
   },
 
-  uploadImage: async (file: File) => {
+  uploadImage: async (file: File): Promise<void> => {
+    set({ isLoading: true, error: null });
     try {
-      console.log("ImageStore: Starting upload for file:", file.name);
-      console.log("ImageStore: File details:", {
-        type: file.type,
-        size: file.size,
-      });
+      const formData = new FormData();
+      formData.append("file", file);
 
-      const data = await apiClient.uploadFile<{
-        id: string;
-        url: string;
-        secure_url: string;
-        public_id: string;
-        filename: string;
-      }>("/images/upload", file);
-
-      console.log("ImageStore: Upload response:", data);
-
-      const imageUrl = data.secure_url || data.url;
-      console.log("ImageStore: Extracted imageUrl:", imageUrl);
-
-      set((state) => {
-        console.log("ImageStore: Current state before update:", state);
-        const newState = {
-          savedImages: [
-            ...state.savedImages,
-            {
-              id: data.public_id || data.id,
-              url: imageUrl,
-              filename: file.name,
-            },
-          ],
-          imageUrl: imageUrl,
-        };
-        console.log("ImageStore: New state after update:", newState);
-        return newState;
-      });
-
-      console.log("ImageStore: Upload and state update completed successfully");
+      const response = await apiClient.uploadFile<SavedImage>(
+        "images/upload",
+        file
+      );
+      set((state) => ({
+        savedImages: [response, ...state.savedImages],
+        isLoading: false,
+      }));
     } catch (error) {
-      console.error("ImageStore: Error uploading image:", error);
+      set({ error: "Failed to upload image", isLoading: false });
       throw error;
     }
   },
 
-  deleteImage: async (id: string) => {
+  deleteImage: async (publicId: string) => {
+    set({ isLoading: true, error: null });
     try {
-      await apiClient.delete(`/${id}?source=cloudinary`);
-
+      await apiClient.delete(`images/${publicId}`);
       set((state) => ({
-        savedImages: state.savedImages.filter((img) => img.id !== id),
-        imageUrl:
-          state.savedImages.find((img) => img.id === id)?.url === state.imageUrl
-            ? null
-            : state.imageUrl,
+        savedImages: state.savedImages.filter((img) => img.id !== publicId),
+        imageUrl: state.imageUrl === publicId ? null : state.imageUrl,
+        isLoading: false,
       }));
     } catch (error) {
-      console.error("Error deleting image:", error);
+      set({ error: "Failed to delete image", isLoading: false });
       throw error;
     }
   },
@@ -265,29 +245,50 @@ export const useImageStore = create<ImageState>((set, get) => ({
     }
   },
 
-  fetchCloudinaryImages: async (folder: string = "images") => {
+  fetchCloudinaryImages: async (userId: string) => {
     try {
-      const images = await apiClient.get<
-        {
-          id: string;
-          public_id: string;
-          secure_url: string;
-          url: string;
-          filename?: string;
-        }[]
-      >(`/images?source=cloudinary&folder=${folder}`);
+      const response = await apiClient.get<{ images: any[]; total: number }>(
+        `/images/user/${userId}`
+      );
 
-      set((state) => ({
-        savedImages: images.map((image) => ({
-          id: image.public_id || image.id,
-          url: image.secure_url || image.url,
-          filename:
-            image.filename || image.public_id?.split("/").pop() || "Image",
-        })),
-      }));
+      if (response && response.images) {
+        const images = response.images.map((image) => ({
+          id: image.id,
+          url: image.url,
+          publicId: image.publicId,
+          filename: image.filename || image.publicId.split("/").pop(),
+          mimeType: image.mimeType,
+          size: image.size,
+          width: image.width,
+          height: image.height,
+        }));
+
+        set({ savedImages: images });
+      }
     } catch (error) {
-      console.error("Error fetching Cloudinary images:", error);
+      console.error("Error fetching images:", error);
+      set({ savedImages: [] }); // Set empty array on error
       throw error;
     }
   },
+
+  fetchUserImages: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await apiClient.get<any>("images");
+      set({
+        savedImages: response.resources || [],
+        isLoading: false,
+      });
+    } catch (error) {
+      console.warn("No images found or error fetching images");
+      set({
+        savedImages: [],
+        isLoading: false,
+        error: null, // Don't set error for empty results
+      });
+    }
+  },
+
+  clearError: () => set({ error: null }),
 }));
