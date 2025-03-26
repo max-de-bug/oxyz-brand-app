@@ -26,13 +26,8 @@ const TextControls = () => {
     <>
       <ul className="flex flex-wrap text-xs font-medium text-center justify-center text-gray-500 dark:text-gray-400 gap-2 mb-2">
         <li className="flex-1">
-          <button
-            className="flex justify-center py-3 px-3 rounded-lg text-white bg-neutral-800 hover:bg-neutral-700"
-            onClick={() =>
-              setTextOverlay({ isVisible: !textOverlay.isVisible })
-            }
-          >
-            {textOverlay.isVisible ? <Type /> : <EyeOff />}
+          <button className="flex justify-center py-3 px-3 rounded-lg text-white bg-neutral-800 hover:bg-neutral-700">
+            <Type />
           </button>
         </li>
         <li></li>

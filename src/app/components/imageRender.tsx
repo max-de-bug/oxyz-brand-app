@@ -11,6 +11,7 @@ import React, {
 import { useImageStore, CanvasLogo } from "@/app/store/imageStore";
 import { useDesignStore } from "@/app/store/designStore";
 import { Trash2 } from "lucide-react";
+import { usePresetStore } from "../store/presetStore";
 
 interface ImageRenderContextType {
   captureCanvas: () => Promise<string | null>;
@@ -67,6 +68,8 @@ const ImageRender = () => {
   // Get text overlay and aspect ratio from design store
   const { textOverlay, setTextOverlay, selectText, deleteText, aspectRatio } =
     useDesignStore();
+
+  const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
 
   // Inside the ImageRender component, add this right after your other state declarations
   const { aspectRatio: designStoreAspectRatio } = useDesignStore();
@@ -1352,7 +1355,7 @@ const ImageRender = () => {
           className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
           style={{
             left: "calc(50% - 192px)",
-            top: "50%",
+            top: "43%",
             transform: "translate(-50%, -50%)",
             height: "auto",
             minHeight: `${

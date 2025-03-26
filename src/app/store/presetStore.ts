@@ -48,11 +48,13 @@ interface PresetStore {
   presets: Preset[];
   cloudinaryPresets: Preset[];
   selectedPreset: Preset | null;
+  activePreset: Preset | null;
   loading: boolean;
   loadingCloudinary: boolean;
   error: string | null;
   nextCursor: string | null;
 
+  setActivePreset: (preset: Preset | null) => void;
   fetchPresets: () => Promise<void>;
   fetchCloudinaryPresets: (folder?: string) => Promise<void>;
   loadMoreCloudinaryPresets: () => Promise<void>;
@@ -66,10 +68,13 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
   presets: [],
   cloudinaryPresets: [],
   selectedPreset: null,
+  activePreset: null,
   loading: false,
   loadingCloudinary: false,
   error: null,
   nextCursor: null,
+
+  setActivePreset: (preset) => set({ activePreset: preset }),
 
   fetchPresets: async () => {
     try {
@@ -327,6 +332,13 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
   deletePreset: async (id) => {
     try {
       await apiClient.delete(`/presets/${id}`);
+
+      // Clear activePreset if it matches the deleted preset
+      const currentActivePreset = get().activePreset;
+      if (currentActivePreset?.id === id) {
+        set({ activePreset: null });
+      }
+
       // Refresh presets after deletion
       get().fetchPresets();
     } catch (error) {

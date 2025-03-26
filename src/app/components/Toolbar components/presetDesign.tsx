@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
   Loader2,
@@ -10,60 +10,39 @@ import {
   Check,
   Trash2,
   Sliders,
+  Plus,
 } from "lucide-react";
-import { usePresetStore, Preset } from "@/store/presetStore";
+import { usePresetStore, Preset } from "@/app/store/presetStore";
 import { useImageStore } from "@/app/store/imageStore";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/app/store/auth-context";
+import { Badge } from "@/components/ui/badge";
 
 const PresetDesigns = () => {
   const { session } = useAuth();
-  const [showCloudinary, setShowCloudinary] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [newPreset, setNewPreset] = useState<Partial<Preset>>({
-    name: "",
-    filter: {
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      sepia: 0,
-      opacity: 100,
-    },
-  });
-
-  const { setImage, setFilter, opacity } = useImageStore();
-
+  const { setImage, setFilter } = useImageStore();
   const {
-    presets,
-    cloudinaryPresets,
+    cloudinaryPresets: displayPresets,
     selectedPreset,
+    activePreset,
     loading,
-    loadingCloudinary,
     error,
     nextCursor,
-    fetchPresets,
     fetchCloudinaryPresets,
     loadMoreCloudinaryPresets,
     setSelectedPreset,
-    setDefault,
-    createPreset,
+    setActivePreset,
     deletePreset,
   } = usePresetStore();
 
   useEffect(() => {
     if (session) {
-      fetchPresets();
-    }
-  }, [session, fetchPresets]);
-
-  useEffect(() => {
-    if (session && showCloudinary) {
       fetchCloudinaryPresets();
     }
-  }, [session, showCloudinary, fetchCloudinaryPresets]);
+  }, [session, fetchCloudinaryPresets]);
 
   useEffect(() => {
     if (selectedPreset) {
@@ -86,7 +65,19 @@ const PresetDesigns = () => {
     }
   }, [selectedPreset, setFilter, setImage]);
 
-  const handlePresetClick = (preset: Preset) => {
+  const isPresetSelected = useCallback(
+    (presetId: string) => {
+      return activePreset?.id === presetId;
+    },
+    [activePreset]
+  );
+
+  const handlePresetClick = (preset: Preset, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+
+    setActivePreset(preset);
     setSelectedPreset(preset);
 
     if (preset.filter) {
@@ -98,11 +89,6 @@ const PresetDesigns = () => {
         opacity:
           preset.filter.opacity !== undefined ? preset.filter.opacity : 100,
       });
-
-      console.log(
-        "Applied filter with opacity:",
-        preset.filter.opacity !== undefined ? preset.filter.opacity : 100
-      );
     }
 
     if (preset.url) {
@@ -110,30 +96,9 @@ const PresetDesigns = () => {
     }
   };
 
-  const handleCreatePreset = async () => {
-    if (!newPreset.name) {
-      alert("Please enter a preset name");
-      return;
-    }
-
-    setCreating(true);
-    try {
-      await createPreset(newPreset);
-      setNewPreset({
-        name: "",
-        filter: {
-          brightness: 100,
-          contrast: 100,
-          saturation: 100,
-          sepia: 0,
-          opacity: 100,
-        },
-      });
-    } catch (error) {
-      console.error("Error creating preset:", error);
-    } finally {
-      setCreating(false);
-    }
+  const handleRemovePreset = () => {
+    const { clearMainImage } = useImageStore.getState();
+    clearMainImage();
   };
 
   const handleDeletePreset = async (id: string) => {
@@ -141,16 +106,6 @@ const PresetDesigns = () => {
       await deletePreset(id);
     }
   };
-
-  const toggleSource = () => {
-    setShowCloudinary(!showCloudinary);
-  };
-
-  // Ensure displayPresets is always an array
-  const displayPresets = showCloudinary
-    ? cloudinaryPresets || []
-    : presets || [];
-  const isLoading = showCloudinary ? loadingCloudinary : loading;
 
   if (!session) {
     return null;
@@ -160,27 +115,46 @@ const PresetDesigns = () => {
     <div className="p-4">
       <div className="flex justify-between mb-4">
         <h2 className="text-lg font-semibold">Preset Designs</h2>
-        <div className="flex gap-2">
-          <button
-            onClick={toggleSource}
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
-          >
-            {showCloudinary ? "Show Local" : "Show Cloudinary"}{" "}
-            <Cloud size={16} />
-          </button>
-          <button
-            onClick={() =>
-              showCloudinary ? fetchCloudinaryPresets() : fetchPresets()
-            }
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <RefreshCw size={16} />
-            )}
-          </button>
+        <button
+          onClick={(e) => fetchCloudinaryPresets()}
+          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
+          disabled={loading}
+        >
+          {loading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <RefreshCw size={16} />
+          )}
+        </button>
+      </div>
+
+      <div className="mb-4">
+        <h3 className="text-sm font-medium mb-2">
+          Active Preset {activePreset ? "(1)" : "(0)"}
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {activePreset ? (
+            <Badge
+              key={activePreset.id}
+              variant="default"
+              className="group flex items-center gap-2 cursor-pointer pr-2"
+            >
+              <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-400 to-purple-500" />
+              <span className="max-w-[60px] truncate">
+                {activePreset.name || "Preset"}
+              </span>
+              <button
+                onClick={() => handleRemovePreset()}
+                className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+              >
+                <Trash2 size={12} />
+              </button>
+            </Badge>
+          ) : (
+            <span className="text-xs text-gray-500">
+              No preset applied to canvas
+            </span>
+          )}
         </div>
       </div>
 
@@ -190,314 +164,120 @@ const PresetDesigns = () => {
         </div>
       )}
 
-      {!showCloudinary && (
-        <div className="mb-6 p-3 border rounded bg-gray-50">
-          <h3 className="text-sm font-medium mb-2 flex items-center gap-1">
-            <Sliders size={16} /> Create New Preset
-          </h3>
-
-          <div className="mb-3">
-            <Label htmlFor="preset-name" className="text-xs mb-1 block">
-              Preset Name
-            </Label>
-            <Input
-              id="preset-name"
-              type="text"
-              value={newPreset.name}
-              onChange={(e) =>
-                setNewPreset({ ...newPreset, name: e.target.value })
-              }
-              placeholder="My Preset"
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="space-y-3">
-            <div>
-              <Label htmlFor="brightness" className="text-xs mb-1 block">
-                Brightness: {newPreset.filter?.brightness}%
-              </Label>
-              <Slider
-                id="brightness"
-                value={[newPreset.filter?.brightness || 100]}
-                min={0}
-                max={200}
-                step={5}
-                onValueChange={(value) =>
-                  setNewPreset({
-                    ...newPreset,
-                    filter: { ...newPreset.filter, brightness: value[0] },
-                  })
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="contrast" className="text-xs mb-1 block">
-                Contrast: {newPreset.filter?.contrast}%
-              </Label>
-              <Slider
-                id="contrast"
-                value={[newPreset.filter?.contrast || 100]}
-                min={0}
-                max={200}
-                step={5}
-                onValueChange={(value) =>
-                  setNewPreset({
-                    ...newPreset,
-                    filter: { ...newPreset.filter, contrast: value[0] },
-                  })
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="saturation" className="text-xs mb-1 block">
-                Saturation: {newPreset.filter?.saturation}%
-              </Label>
-              <Slider
-                id="saturation"
-                value={[newPreset.filter?.saturation || 100]}
-                min={0}
-                max={200}
-                step={5}
-                onValueChange={(value) =>
-                  setNewPreset({
-                    ...newPreset,
-                    filter: { ...newPreset.filter, saturation: value[0] },
-                  })
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="sepia" className="text-xs mb-1 block">
-                Sepia: {newPreset.filter?.sepia}%
-              </Label>
-              <Slider
-                id="sepia"
-                value={[newPreset.filter?.sepia || 0]}
-                min={0}
-                max={100}
-                step={5}
-                onValueChange={(value) =>
-                  setNewPreset({
-                    ...newPreset,
-                    filter: { ...newPreset.filter, sepia: value[0] },
-                  })
-                }
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="opacity" className="text-xs mb-1 block">
-                Opacity: {newPreset.filter?.opacity}%
-              </Label>
-              <Slider
-                id="opacity"
-                value={[newPreset.filter?.opacity || 100]}
-                min={0}
-                max={100}
-                step={5}
-                onValueChange={(value) => {
-                  console.log("Opacity slider changed to:", value[0]);
-
-                  // Update the new preset state
-                  setNewPreset({
-                    ...newPreset,
-                    filter: { ...newPreset.filter, opacity: value[0] },
-                  });
-
-                  // Also apply the opacity to the current image in real-time
-                  setFilter({ opacity: value[0] });
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="mt-4">
-            <Button
-              onClick={handleCreatePreset}
-              disabled={creating || !newPreset.name}
-              className="w-full h-8 text-sm"
-            >
-              {creating ? (
-                <>
-                  <Loader2 size={14} className="mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Upload size={14} className="mr-2" />
-                  Create Preset
-                </>
-              )}
-            </Button>
-          </div>
-
-          <div className="mt-3 p-2 border rounded bg-white">
-            <div className="text-xs text-center mb-1">Preview</div>
-            <div
-              className="h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded"
-              style={{
-                filter: `
-                  brightness(${newPreset.filter?.brightness || 100}%) 
-                  contrast(${newPreset.filter?.contrast || 100}%) 
-                  saturate(${newPreset.filter?.saturation || 100}%) 
-                  sepia(${newPreset.filter?.sepia || 0}%)
-                `,
-                opacity: `${(newPreset.filter?.opacity || 100) / 100}`,
-              }}
-            ></div>
-          </div>
-        </div>
-      )}
-
-      {isLoading ? (
+      {loading ? (
         <div className="flex justify-center py-8">
           <Loader2 className="animate-spin" />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
           {displayPresets && displayPresets.length > 0 ? (
-            displayPresets.map((preset) => (
-              <div
-                key={preset.id}
-                className={`relative p-2 border rounded ${
-                  selectedPreset?.id === preset.id
-                    ? "border-blue-500"
-                    : "border-gray-200"
-                } ${preset.isDefault ? "bg-blue-50" : ""}`}
-              >
-                <div className="flex justify-between mb-2">
-                  <div className="text-xs truncate max-w-[80%]">
-                    {preset.name || preset.id.split("/").pop() || "Preset"}
-                  </div>
-                  {!showCloudinary && (
-                    <button
-                      onClick={() => handleDeletePreset(preset.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </div>
+            displayPresets.map((preset) => {
+              const isSelected = isPresetSelected(preset.id);
 
-                {preset.url ? (
-                  <div className="flex justify-center p-2 bg-gray-50 rounded mb-2">
-                    <img
-                      src={preset.url}
-                      alt={preset.name || "Preset"}
-                      className="object-contain max-h-24"
-                      style={{
-                        maxWidth: "100%",
-                        filter: `
-                          brightness(${preset.filter?.brightness || 100}%) 
-                          contrast(${preset.filter?.contrast || 100}%) 
-                          saturate(${preset.filter?.saturation || 100}%) 
-                          sepia(${preset.filter?.sepia || 0}%)
-                        `,
-                        opacity: `${(preset.filter?.opacity || 100) / 100}`,
-                      }}
-                      onClick={() => handlePresetClick(preset)}
-                    />
-                  </div>
-                ) : (
-                  <div
-                    className="h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded mb-2"
-                    style={{
-                      filter: `
-                        brightness(${preset.filter?.brightness || 100}%) 
-                        contrast(${preset.filter?.contrast || 100}%) 
-                        saturate(${preset.filter?.saturation || 100}%) 
-                        sepia(${preset.filter?.sepia || 0}%)
-                      `,
-                      opacity: `${(preset.filter?.opacity || 100) / 100}`,
-                    }}
-                    onClick={() => handlePresetClick(preset)}
-                  ></div>
-                )}
-
-                <div className="grid grid-cols-2 gap-1 mb-2 text-[10px] text-gray-500">
-                  <div>Brightness: {preset.filter?.brightness || 100}%</div>
-                  <div>Contrast: {preset.filter?.contrast || 100}%</div>
-                  <div>Saturation: {preset.filter?.saturation || 100}%</div>
-                  <div>Sepia: {preset.filter?.sepia || 0}%</div>
-                  <div>Opacity: {preset.filter?.opacity || 100}%</div>
-                </div>
-
-                <div className="flex gap-1 mb-2">
-                  <button
-                    onClick={() => {
-                      if (preset.filter) {
-                        setFilter({
-                          brightness: preset.filter.brightness || 100,
-                          contrast: preset.filter.contrast || 100,
-                          saturation: preset.filter.saturation || 100,
-                          sepia: preset.filter.sepia || 0,
-                          opacity:
-                            preset.filter.opacity !== undefined
-                              ? preset.filter.opacity
-                              : 100,
-                        });
-
-                        console.log(
-                          "Applied filter with opacity:",
-                          preset.filter.opacity !== undefined
-                            ? preset.filter.opacity
-                            : 100
-                        );
-                      }
-                    }}
-                    className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700"
-                  >
-                    Apply Filter
-                  </button>
-
-                  <button
-                    onClick={() => handlePresetClick(preset)}
-                    className="flex-1 text-xs p-1 rounded bg-gray-800 hover:bg-gray-700"
-                  >
-                    Use Preset
-                  </button>
-                </div>
-
-                <button
-                  onClick={() => setDefault(preset)}
-                  className={`w-full text-xs p-1 rounded flex items-center justify-center gap-1 ${
-                    preset.isDefault
-                      ? "bg-blue-100 text-blue-700"
-                      : "bg-gray-800 hover:bg-gray-700"
-                  }`}
+              return (
+                <div
+                  key={preset.id}
+                  onClick={() => handlePresetClick(preset)}
+                  className={`relative p-2 border rounded transition-all cursor-pointer
+                    ${isSelected ? "border-blue-500" : "border-gray-200"}
+                    ${preset.isDefault ? "bg-blue-50" : ""}
+                    ${
+                      !isSelected ? "hover:border-blue-300 hover:shadow-md" : ""
+                    }`}
                 >
-                  {preset.isDefault ? (
-                    <>
-                      <Check size={12} /> Default
-                    </>
-                  ) : (
-                    "Set as Default"
-                  )}
-                </button>
-              </div>
-            ))
+                  <div
+                    className="flex justify-between mb-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="text-xs truncate max-w-[80%]">
+                      {preset.name || preset.id.split("/").pop() || "Preset"}
+                    </div>
+                    {!session && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeletePreset(preset.id);
+                        }}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="group">
+                    {preset.url ? (
+                      <div className="flex justify-center p-2 bg-gray-50 rounded mb-2">
+                        <img
+                          src={preset.url}
+                          alt={preset.name || "Preset"}
+                          className="object-contain max-h-24 transition-transform group-hover:scale-105"
+                          style={{
+                            maxWidth: "100%",
+                            filter: `
+                              brightness(${preset.filter?.brightness || 100}%) 
+                              contrast(${preset.filter?.contrast || 100}%) 
+                              saturate(${preset.filter?.saturation || 100}%) 
+                              sepia(${preset.filter?.sepia || 0}%)
+                            `,
+                            opacity: `${(preset.filter?.opacity || 100) / 100}`,
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        className="h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded mb-2 transition-transform group-hover:scale-105"
+                        style={{
+                          filter: `
+                            brightness(${preset.filter?.brightness || 100}%) 
+                            contrast(${preset.filter?.contrast || 100}%) 
+                            saturate(${preset.filter?.saturation || 100}%) 
+                            sepia(${preset.filter?.sepia || 0}%)
+                          `,
+                          opacity: `${(preset.filter?.opacity || 100) / 100}`,
+                        }}
+                      ></div>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={(e) => handlePresetClick(preset, e)}
+                    className={`w-full text-xs p-2 rounded flex items-center justify-center gap-1
+                      ${
+                        isSelected
+                          ? "bg-blue-500 hover:bg-blue-600 text-white"
+                          : "bg-gray-800 hover:bg-gray-700 text-white"
+                      }`}
+                  >
+                    {isSelected ? (
+                      <>
+                        <Check size={12} /> Selected
+                      </>
+                    ) : (
+                      <>
+                        <Plus size={12} /> Add to Canvas
+                      </>
+                    )}
+                  </button>
+                </div>
+              );
+            })
           ) : (
             <div className="col-span-2 py-4 text-center text-gray-500">
-              {showCloudinary
-                ? "No presets found in Cloudinary. Upload some presets to get started."
-                : "No presets found. Create some presets to get started."}
+              No presets found. Create some presets to get started.
             </div>
           )}
         </div>
       )}
 
-      {showCloudinary && nextCursor && (
+      {nextCursor && (
         <div className="mt-4 text-center">
           <button
             onClick={loadMoreCloudinaryPresets}
             className="px-4 py-2 text-sm bg-gray-800 rounded hover:bg-gray-700"
-            disabled={loadingCloudinary}
+            disabled={loading}
           >
-            {loadingCloudinary ? (
+            {loading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               "Load More"

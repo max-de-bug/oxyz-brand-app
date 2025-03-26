@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { apiClient } from "@/lib/api-client";
+import { usePresetStore } from "@/app/store/presetStore";
 
 // Define interfaces
 export interface SavedImage {
@@ -83,7 +84,24 @@ export const useImageStore = create<ImageState>((set, get) => ({
     });
   },
 
-  clearMainImage: () => set({ imageUrl: null }),
+  clearMainImage: () => {
+    // Get the preset store actions
+    const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
+
+    // Clear everything in one action
+    set({
+      imageUrl: null,
+      brightness: 100,
+      contrast: 100,
+      saturation: 100,
+      sepia: 0,
+      opacity: 100,
+    });
+
+    // Clear preset states
+    setActivePreset(null);
+    setSelectedPreset(null);
+  },
 
   addLogo: (url) => {
     set((state) => ({

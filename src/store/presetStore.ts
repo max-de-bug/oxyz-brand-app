@@ -56,6 +56,7 @@ interface PresetStore {
   presets: Preset[];
   cloudinaryPresets: Preset[];
   selectedPreset: Preset | null;
+  activePreset: Preset | null;
   loading: boolean;
   loadingCloudinary: boolean;
   error: string | null;
@@ -65,6 +66,7 @@ interface PresetStore {
   fetchCloudinaryPresets: (folder?: string) => Promise<void>;
   loadMoreCloudinaryPresets: () => Promise<void>;
   setSelectedPreset: (preset: Preset | null) => void;
+  setActivePreset: (preset: Preset | null) => void;
   setDefault: (preset: Preset) => Promise<void>;
   createPreset: (preset: Partial<Preset>) => Promise<void>;
   deletePreset: (id: string) => Promise<void>;
@@ -74,6 +76,7 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
   presets: [],
   cloudinaryPresets: [],
   selectedPreset: null,
+  activePreset: null,
   loading: false,
   loadingCloudinary: false,
   error: null,
@@ -288,6 +291,10 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
 
   setSelectedPreset: (preset) => {
     set({ selectedPreset: preset });
+  },
+
+  setActivePreset: (preset) => {
+    set({ activePreset: preset });
   },
 
   setDefault: async (preset) => {

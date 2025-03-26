@@ -14,6 +14,7 @@ import LogoDesigns from "./Toolbar components/logoDesign";
 import TypographyDesigns from "./Toolbar components/typographyDesigns";
 import ImageUploader from "./Toolbar components/imageUploader";
 import AspectRatioControls from "./Toolbar components/aspectRatioControls";
+import PresetBuilder from "./Toolbar components/presetBuilder";
 
 const ToolBar = () => {
   const {
@@ -46,6 +47,10 @@ const ToolBar = () => {
         <hr className="h-px border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800 hidden lg:block" />
 
         <ColorPicker colorValue={colorValue} setColorValue={setColorValue} />
+
+        <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
+
+        <PresetBuilder />
 
         <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
