@@ -220,17 +220,55 @@ export const useImageStore = create<ImageState>((set, get) => ({
     }
   },
 
-  deleteImage: async (publicId: string) => {
+  deleteImage: async (publicId: string): Promise<void> => {
     set({ isLoading: true, error: null });
     try {
-      await apiClient.delete(`images/${publicId}`);
-      set((state) => ({
-        savedImages: state.savedImages.filter((img) => img.id !== publicId),
-        imageUrl: state.imageUrl === publicId ? null : state.imageUrl,
-        isLoading: false,
-      }));
+      console.log("Deleting image with ID/publicId:", publicId);
+
+      // Check if the publicId includes users/ path format
+      if (publicId.includes("users/")) {
+        // This is a Cloudinary public_id - extract folder type
+        const pathParts = publicId.split("/");
+        // Format would be "users/[userId]/images/..."
+        const folderType = pathParts.length > 2 ? pathParts[2] : "images";
+
+        // Make sure we're always passing the folder parameter in the URL
+        await apiClient.delete(
+          `images/cloudinary/${encodeURIComponent(
+            publicId
+          )}?folder=${folderType}`
+        );
+      } else {
+        // This is a DB ID - use the standard endpoint
+        await apiClient.delete(`images/${publicId}`);
+      }
+
+      // Update state: remove the deleted image and clear main image if it was selected
+      set((state) => {
+        // Find the image that's being deleted to get its URL if needed
+        const deletedImage = state.savedImages.find(
+          (img) => img.id === publicId || img.publicId === publicId
+        );
+
+        return {
+          // Remove the image from the savedImages list
+          savedImages: state.savedImages.filter(
+            (img) => img.id !== publicId && img.publicId !== publicId
+          ),
+          // Clear main image if it was the one deleted
+          imageUrl:
+            deletedImage?.url === state.imageUrl ? null : state.imageUrl,
+          isLoading: false,
+        };
+      });
+
+      console.log("Image deleted successfully");
     } catch (error) {
-      set({ error: "Failed to delete image", isLoading: false });
+      console.error("Error deleting image:", error);
+      set({
+        error: "Failed to delete image",
+        isLoading: false,
+      });
       throw error;
     }
   },

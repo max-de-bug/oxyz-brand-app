@@ -5,7 +5,7 @@ import { Loader2, Upload, Plus, Trash2, RefreshCw, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useImageStore } from "@/app/store/imageStore";
-import { signIn, useSession } from "next-auth/react";
+import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
 
 const ImageUploader = () => {
@@ -74,9 +74,8 @@ const ImageUploader = () => {
     },
     [session, uploadImage]
   );
-
   const handleDeleteImage = useCallback(
-    async (id: string) => {
+    async (image: { publicId?: string; id?: string }) => {
       if (!session) return;
       if (!confirm("Are you sure you want to delete this image?")) {
         return;
@@ -84,12 +83,19 @@ const ImageUploader = () => {
 
       try {
         setLoading(true);
-        console.log("Attempting to delete image:", id); // Debug log
+        // Use publicId for Cloudinary images if available, otherwise fall back to id
+        const identifier = image.publicId || image.id;
+        console.log("Attempting to delete image:", identifier);
 
-        await deleteImage(id);
+        // Ensure identifier is not undefined before passing to deleteImage
+        if (identifier) {
+          await deleteImage(identifier);
 
-        // Refresh the image list
-        await fetchCloudinaryImages(session.user.id);
+          // Refresh the image list
+          await fetchCloudinaryImages(session.user.id);
+        } else {
+          throw new Error("Image identifier is missing");
+        }
 
         // Show success message
         alert("Image deleted successfully");
@@ -223,7 +229,7 @@ const ImageUploader = () => {
                     {image.filename || "Image"}
                   </div>
                   <button
-                    onClick={() => handleDeleteImage(image.id)}
+                    onClick={() => handleDeleteImage(image)}
                     className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
                     title="Delete image"
                     disabled={loading}
