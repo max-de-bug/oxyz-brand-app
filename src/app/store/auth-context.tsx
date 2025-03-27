@@ -10,6 +10,7 @@ import React, {
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
 
 type AuthContextType = {
   session: Session | null;
@@ -19,9 +20,17 @@ type AuthContextType = {
   signInWithMagicLink: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuthState: () => Promise<void>;
+  defaultImage: DefaultImage | null;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+interface DefaultImage {
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -31,6 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
+  const [defaultImage, setDefaultImage] = useState<DefaultImage | null>(null);
 
   // Function to refresh the auth state
   const refreshAuthState = useCallback(async () => {
@@ -87,6 +97,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [supabase.auth, refreshAuthState]);
+
+  useEffect(() => {
+    // Fetch default image when component mounts
+    const fetchDefaultImage = async () => {
+      try {
+        const response = await apiClient.get<DefaultImage>(
+          "users/defaults/image"
+        );
+        setDefaultImage(response);
+      } catch (error) {
+        console.error("Error fetching default user image:", error);
+      }
+    };
+    fetchDefaultImage();
+  }, []);
 
   // Sign in with magic link
   const signInWithMagicLink = async (email: string) => {
@@ -149,6 +174,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithMagicLink,
     signOut,
     refreshAuthState,
+    defaultImage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
