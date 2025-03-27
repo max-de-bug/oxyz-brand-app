@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/app/store/auth-context";
+import { Carousel } from "@/components/ui/carousel";
 
 const LogoDesigns = () => {
   const { session } = useAuth();
@@ -121,6 +122,81 @@ const LogoDesigns = () => {
 
   // Add this function to check if logo is on canvas
 
+  const renderLogoCard = useCallback(
+    (logo: any) => {
+      const logoUrl = logo.url || (logo as any).secure_url;
+      const isOnCanvas = isLogoOnCanvas(logoUrl);
+
+      return (
+        <div
+          key={logo.id}
+          className={`relative p-2 border rounded transition-all cursor-pointer
+          ${
+            selectedLogo?.id === logo.id ? "border-blue-500" : "border-gray-200"
+          }
+          ${logo.isDefault ? "bg-blue-50" : ""}
+          ${!isOnCanvas ? "hover:border-blue-300 hover:shadow-md" : ""}
+        `}
+          onClick={() => handleLogoClick(logo)}
+        >
+          <div
+            className="flex justify-between mb-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-xs truncate max-w-[80%]">
+              {logo.filename || logo.publicId?.split("/").pop() || "Logo"}
+            </div>
+            <button
+              onClick={() => handleDeleteLogo(logo.id)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <div className="flex justify-center p-2 bg-gray-50 rounded group">
+            <img
+              src={logoUrl}
+              alt={logo.filename || "Logo"}
+              className="object-contain max-h-24 transition-transform group-hover:scale-105"
+              style={{ maxWidth: "100%" }}
+            />
+          </div>
+          <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleAddLogoToCanvas(logo);
+              }}
+              className={`flex-1 text-xs p-1 rounded flex items-center justify-center gap-1
+              ${
+                isOnCanvas
+                  ? "bg-blue-500 hover:bg-blue-600 text-white"
+                  : "bg-gray-800 hover:bg-gray-700"
+              }`}
+            >
+              {isOnCanvas ? (
+                <>
+                  <Check size={12} /> Selected
+                </>
+              ) : (
+                <>
+                  <Plus size={12} /> Add to Canvas
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      );
+    },
+    [
+      selectedLogo,
+      isLogoOnCanvas,
+      handleLogoClick,
+      handleDeleteLogo,
+      handleAddLogoToCanvas,
+    ]
+  );
+
   return (
     <div className="p-4">
       <div className="flex justify-between mb-4">
@@ -170,7 +246,7 @@ const LogoDesigns = () => {
       {/* Updated Canvas Logos Section */}
       <div className="mb-4">
         <h3 className="text-sm font-medium mb-2">
-          Logos on Canvas ({logos.length})
+          Active Logos ({logos.length})
         </h3>
         <div className="flex flex-wrap gap-2">
           {logos.length > 0 ? (
@@ -202,85 +278,32 @@ const LogoDesigns = () => {
         </div>
       </div>
 
-      {/* Updated Logo Grid with clickable cards */}
-      <div className="grid grid-cols-2 gap-4">
-        {displayLogos && displayLogos.length > 0 ? (
-          displayLogos.map((logo) => {
-            const logoUrl = logo.url || (logo as any).secure_url;
-            const isOnCanvas = isLogoOnCanvas(logoUrl);
-
-            return (
-              <div
-                key={logo.id}
-                className={`relative p-2 border rounded transition-all cursor-pointer
-                  ${
-                    selectedLogo?.id === logo.id
-                      ? "border-blue-500"
-                      : "border-gray-200"
-                  }
-                  ${logo.isDefault ? "bg-blue-50" : ""}
-                  ${!isOnCanvas ? "hover:border-blue-300 hover:shadow-md" : ""}
-                `}
-                onClick={() => handleLogoClick(logo)}
-              >
-                <div
-                  className="flex justify-between mb-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="text-xs truncate max-w-[80%]">
-                    {logo.filename || logo.publicId?.split("/").pop() || "Logo"}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteLogo(logo.id)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="flex justify-center p-2 bg-gray-50 rounded group">
-                  <img
-                    src={logoUrl}
-                    alt={logo.filename || "Logo"}
-                    className="object-contain max-h-24 transition-transform group-hover:scale-105"
-                    style={{ maxWidth: "100%" }}
-                  />
-                </div>
-                <div
-                  className="flex gap-1 mt-2"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleAddLogoToCanvas(logo);
-                    }}
-                    className={`flex-1 text-xs p-1 rounded flex items-center justify-center gap-1
-                      ${
-                        isOnCanvas
-                          ? "bg-blue-500 hover:bg-blue-600 text-white"
-                          : "bg-gray-800 hover:bg-gray-700"
-                      }`}
-                  >
-                    {isOnCanvas ? (
-                      <>
-                        <Check size={12} /> Selected
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={12} /> Add to Canvas
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            );
-          })
-        ) : (
-          <div className="col-span-2 py-4 text-center text-gray-500">
-            No logos found. Upload some logos to get started.
-          </div>
-        )}
-      </div>
+      {/* Updated Logo Grid with Carousel */}
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="animate-spin" />
+        </div>
+      ) : (
+        <div className="mt-6">
+          {displayLogos && displayLogos.length > 0 ? (
+            <>
+              <h3 className="text-sm font-medium mb-4">
+                Available Logos ({displayLogos.length})
+              </h3>
+              <Carousel
+                items={displayLogos.map((logo) => renderLogoCard(logo))}
+                itemsPerView={2}
+                spacing={16}
+                className="py-3"
+              />
+            </>
+          ) : (
+            <div className="py-4 text-center text-gray-500">
+              No logos found. Upload some logos to get started.
+            </div>
+          )}
+        </div>
+      )}
 
       {nextCursor && (
         <div className="mt-4 text-center">

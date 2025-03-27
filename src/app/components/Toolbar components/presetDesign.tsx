@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/app/store/auth-context";
 import { Badge } from "@/components/ui/badge";
+import { Carousel } from "@/components/ui/carousel";
 
 const PresetDesigns = () => {
   const { session } = useAuth();
@@ -107,6 +108,99 @@ const PresetDesigns = () => {
     }
   };
 
+  const renderPresetCard = useCallback(
+    (preset: Preset) => {
+      const isSelected = isPresetSelected(preset.id);
+
+      return (
+        <div
+          key={preset.id}
+          onClick={() => handlePresetClick(preset)}
+          className={`relative p-2 border rounded transition-all cursor-pointer
+          ${isSelected ? "border-blue-500" : "border-gray-200"}
+          ${preset.isDefault ? "bg-blue-50" : ""}
+          ${!isSelected ? "hover:border-blue-300 hover:shadow-md" : ""}`}
+        >
+          <div
+            className="flex justify-between mb-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-xs truncate max-w-[80%]">
+              {preset.name || preset.id.split("/").pop() || "Preset"}
+            </div>
+            {!session && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeletePreset(preset.id);
+                }}
+                className="text-red-500 hover:text-red-700"
+              >
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="group">
+            {preset.url ? (
+              <div className="flex justify-center p-2 bg-gray-50 rounded mb-2">
+                <img
+                  src={preset.url}
+                  alt={preset.name || "Preset"}
+                  className="object-contain max-h-24 transition-transform group-hover:scale-105"
+                  style={{
+                    maxWidth: "100%",
+                    filter: `
+                    brightness(${preset.filter?.brightness || 100}%) 
+                    contrast(${preset.filter?.contrast || 100}%) 
+                    saturate(${preset.filter?.saturation || 100}%) 
+                    sepia(${preset.filter?.sepia || 0}%)
+                  `,
+                    opacity: `${(preset.filter?.opacity || 100) / 100}`,
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                className="h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded mb-2 transition-transform group-hover:scale-105"
+                style={{
+                  filter: `
+                  brightness(${preset.filter?.brightness || 100}%) 
+                  contrast(${preset.filter?.contrast || 100}%) 
+                  saturate(${preset.filter?.saturation || 100}%) 
+                  sepia(${preset.filter?.sepia || 0}%)
+                `,
+                  opacity: `${(preset.filter?.opacity || 100) / 100}`,
+                }}
+              ></div>
+            )}
+          </div>
+
+          <button
+            onClick={(e) => handlePresetClick(preset, e)}
+            className={`w-full text-xs p-2 rounded flex items-center justify-center gap-1
+            ${
+              isSelected
+                ? "bg-blue-500 hover:bg-blue-600 text-white"
+                : "bg-gray-800 hover:bg-gray-700 text-white"
+            }`}
+          >
+            {isSelected ? (
+              <>
+                <Check size={12} /> Selected
+              </>
+            ) : (
+              <>
+                <Plus size={12} /> Add to Canvas
+              </>
+            )}
+          </button>
+        </div>
+      );
+    },
+    [isPresetSelected, handlePresetClick, session, handleDeletePreset]
+  );
+
   if (!session) {
     return null;
   }
@@ -169,101 +263,21 @@ const PresetDesigns = () => {
           <Loader2 className="animate-spin" />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="mt-6">
           {displayPresets && displayPresets.length > 0 ? (
-            displayPresets.map((preset) => {
-              const isSelected = isPresetSelected(preset.id);
-
-              return (
-                <div
-                  key={preset.id}
-                  onClick={() => handlePresetClick(preset)}
-                  className={`relative p-2 border rounded transition-all cursor-pointer
-                    ${isSelected ? "border-blue-500" : "border-gray-200"}
-                    ${preset.isDefault ? "bg-blue-50" : ""}
-                    ${
-                      !isSelected ? "hover:border-blue-300 hover:shadow-md" : ""
-                    }`}
-                >
-                  <div
-                    className="flex justify-between mb-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div className="text-xs truncate max-w-[80%]">
-                      {preset.name || preset.id.split("/").pop() || "Preset"}
-                    </div>
-                    {!session && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeletePreset(preset.id);
-                        }}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="group">
-                    {preset.url ? (
-                      <div className="flex justify-center p-2 bg-gray-50 rounded mb-2">
-                        <img
-                          src={preset.url}
-                          alt={preset.name || "Preset"}
-                          className="object-contain max-h-24 transition-transform group-hover:scale-105"
-                          style={{
-                            maxWidth: "100%",
-                            filter: `
-                              brightness(${preset.filter?.brightness || 100}%) 
-                              contrast(${preset.filter?.contrast || 100}%) 
-                              saturate(${preset.filter?.saturation || 100}%) 
-                              sepia(${preset.filter?.sepia || 0}%)
-                            `,
-                            opacity: `${(preset.filter?.opacity || 100) / 100}`,
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        className="h-16 bg-gradient-to-r from-blue-400 to-purple-500 rounded mb-2 transition-transform group-hover:scale-105"
-                        style={{
-                          filter: `
-                            brightness(${preset.filter?.brightness || 100}%) 
-                            contrast(${preset.filter?.contrast || 100}%) 
-                            saturate(${preset.filter?.saturation || 100}%) 
-                            sepia(${preset.filter?.sepia || 0}%)
-                          `,
-                          opacity: `${(preset.filter?.opacity || 100) / 100}`,
-                        }}
-                      ></div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={(e) => handlePresetClick(preset, e)}
-                    className={`w-full text-xs p-2 rounded flex items-center justify-center gap-1
-                      ${
-                        isSelected
-                          ? "bg-blue-500 hover:bg-blue-600 text-white"
-                          : "bg-gray-800 hover:bg-gray-700 text-white"
-                      }`}
-                  >
-                    {isSelected ? (
-                      <>
-                        <Check size={12} /> Selected
-                      </>
-                    ) : (
-                      <>
-                        <Plus size={12} /> Add to Canvas
-                      </>
-                    )}
-                  </button>
-                </div>
-              );
-            })
+            <>
+              <h3 className="text-sm font-medium mb-4">
+                Available Presets ({displayPresets.length})
+              </h3>
+              <Carousel
+                items={displayPresets.map((preset) => renderPresetCard(preset))}
+                itemsPerView={2}
+                spacing={16}
+                className="py-3"
+              />
+            </>
           ) : (
-            <div className="col-span-2 py-4 text-center text-gray-500">
+            <div className="py-4 text-center text-gray-500">
               No presets found. Create some presets to get started.
             </div>
           )}

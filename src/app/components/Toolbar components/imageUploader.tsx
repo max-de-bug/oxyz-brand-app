@@ -8,11 +8,13 @@ import { useImageStore } from "@/app/store/imageStore";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
 import Image from "next/image";
+import { Carousel } from "@/components/ui/carousel";
 
 const ImageUploader = () => {
   const { session } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const {
     imageUrl,
     setImage,
@@ -62,12 +64,13 @@ const ImageUploader = () => {
 
       const file = event.target.files[0];
       setUploading(true);
+      setSuccessMessage(null); // Clear previous messages
 
       try {
-        // Upload the file and get the response
+        // Upload the image
         const uploadedImage = await uploadImage(file);
 
-        // Optionally refresh the complete image list from server
+        // Immediately refresh the image list after successful upload
         if (session?.user?.id) {
           await fetchCloudinaryImages(session.user.id);
         }
@@ -75,6 +78,10 @@ const ImageUploader = () => {
         // Set the newly uploaded image as the current image
         if (uploadedImage && uploadedImage.url) {
           setImage(uploadedImage.url);
+          setSuccessMessage("Image uploaded successfully!");
+
+          // Clear success message after a few seconds
+          setTimeout(() => setSuccessMessage(null), 3000);
         }
 
         event.target.value = ""; // Reset input
@@ -87,6 +94,7 @@ const ImageUploader = () => {
     },
     [session, uploadImage, fetchCloudinaryImages, setImage]
   );
+
   const handleDeleteImage = useCallback(
     async (image: { publicId?: string; id?: string }) => {
       if (!session) return;
@@ -144,6 +152,61 @@ const ImageUploader = () => {
     ),
     []
   );
+  const renderImageCard = useCallback(
+    (image: {
+      id: string;
+      url: string;
+      publicId?: string;
+      filename?: string;
+      width?: number;
+      height?: number;
+    }) => (
+      <div
+        key={image.id}
+        className={`relative p-2 border rounded ${
+          imageUrl === image.url ? "border-blue-500" : "border-gray-200"
+        }`}
+      >
+        <div className="flex justify-between mb-2">
+          <div className="text-xs truncate max-w-[80%]">
+            {image.filename || "Image"}
+          </div>
+          <button
+            onClick={() => handleDeleteImage(image)}
+            className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
+            title="Delete image"
+            disabled={loading}
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+        <div className="flex justify-center p-2 bg-gray-50 rounded">
+          <img
+            src={image.url}
+            alt={image.filename || "Image"}
+            className={`object-contain max-h-24 cursor-pointer ${
+              imageUrl === image.url ? "ring-2 ring-blue-500" : ""
+            }`}
+            style={{ maxWidth: "100%" }}
+            onClick={() => handleSelectImage(image.url)}
+          />
+        </div>
+        <button
+          onClick={() => handleSelectImage(image.url)}
+          className={`w-full text-xs p-1 mt-2 rounded ${
+            imageUrl === image.url
+              ? "bg-blue-500 text-white hover:bg-blue-600"
+              : "bg-gray-800 hover:bg-gray-700"
+          } flex items-center justify-center gap-1`}
+          disabled={loading}
+        >
+          <Plus size={12} />
+          {imageUrl === image.url ? "Selected" : "Set as Main Image"}
+        </button>
+      </div>
+    ),
+    [imageUrl, handleDeleteImage, handleSelectImage, loading]
+  );
 
   return (
     <div className="p-4">
@@ -187,6 +250,11 @@ const ImageUploader = () => {
               <span>Uploading...</span>
             </div>
           )}
+          {successMessage && (
+            <div className="mt-2 p-2 bg-green-100 text-green-700 rounded text-sm">
+              {successMessage}
+            </div>
+          )}
         </div>
       ) : (
         renderSignInMessage()
@@ -222,69 +290,27 @@ const ImageUploader = () => {
         </div>
       )}
 
-      {/* Saved Images Grid - only show when signed in */}
+      {/* Saved Images Carousel - only show when signed in */}
       {session && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="mt-6">
           {loading ? (
-            <div className="col-span-2 flex justify-center py-8">
+            <div className="flex justify-center py-8">
               <Loader2 className="animate-spin" />
             </div>
           ) : savedImages.length > 0 ? (
-            savedImages.map((image) => (
-              <div
-                key={image.id}
-                className={`relative p-2 border rounded ${
-                  imageUrl === image.url ? "border-blue-500" : "border-gray-200"
-                }`}
-              >
-                <div className="flex justify-between mb-2">
-                  <div className="text-xs truncate max-w-[80%]">
-                    {image.filename || "Image"}
-                  </div>
-                  <button
-                    onClick={() => handleDeleteImage(image)}
-                    className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
-                    title="Delete image"
-                    disabled={loading}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-                <div className="flex justify-center p-2 bg-gray-50 rounded">
-                  {image.url ? (
-                    <Image
-                      src={image.url}
-                      alt={image.filename || "Image"}
-                      width={image.width || 200}
-                      height={image.height || 150}
-                      className={`object-contain max-h-24 cursor-pointer ${
-                        imageUrl === image.url ? "ring-2 ring-blue-500" : ""
-                      }`}
-                      style={{ maxWidth: "100%", height: "auto" }}
-                      onClick={() => handleSelectImage(image.url)}
-                    />
-                  ) : (
-                    <div className="h-24 w-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
-                      No image preview
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleSelectImage(image.url)}
-                  className={`w-full text-xs p-1 mt-2 rounded ${
-                    imageUrl === image.url
-                      ? "bg-blue-500 text-white hover:bg-blue-600"
-                      : "bg-gray-800 hover:bg-gray-700"
-                  } flex items-center justify-center gap-1`}
-                  disabled={loading}
-                >
-                  <Plus size={12} />
-                  {imageUrl === image.url ? "Selected" : "Set as Main Image"}
-                </button>
-              </div>
-            ))
+            <>
+              <h3 className="text-sm font-medium mb-4">
+                Your Images ({savedImages.length})
+              </h3>
+              <Carousel
+                items={savedImages.map((image) => renderImageCard(image))}
+                itemsPerView={2}
+                spacing={16}
+                className="py-3"
+              />
+            </>
           ) : (
-            <div className="col-span-2 py-4 text-center text-gray-500">
+            <div className="py-4 text-center text-gray-500">
               No images found. Upload some images to get started.
             </div>
           )}
