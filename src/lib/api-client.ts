@@ -60,7 +60,11 @@ export const apiClient = {
   /**
    * Make a POST request to the API
    */
-  async post<T>(endpoint: string, data: any): Promise<T> {
+  async post<T>(
+    endpoint: string,
+    data: any,
+    p0?: { headers: { "Content-Type": string } }
+  ): Promise<T> {
     try {
       const url = formatEndpoint(endpoint);
       const headers = await getAuthHeaders();

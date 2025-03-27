@@ -9,6 +9,8 @@ export interface SavedImage {
   url: string;
   filename?: string;
   publicId?: string;
+  width?: number;
+  height?: number;
 }
 
 export interface CanvasLogo {
@@ -52,7 +54,7 @@ interface ImageState {
   clearLogos: () => void;
   clearSavedImages: () => void;
   reset: () => void;
-  uploadImage: (file: File) => Promise<void>;
+  uploadImage: (file: File) => Promise<SavedImage>;
   deleteImage: (id: string) => Promise<void>;
   fetchSavedImages: () => Promise<void>;
   fetchCloudinaryImages: (userId: string) => Promise<void>;
@@ -200,7 +202,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
     });
   },
 
-  uploadImage: async (file: File): Promise<void> => {
+  uploadImage: async (file: File): Promise<SavedImage> => {
     set({ isLoading: true, error: null });
     try {
       const formData = new FormData();
@@ -210,10 +212,15 @@ export const useImageStore = create<ImageState>((set, get) => ({
         "images/upload",
         file
       );
+
+      // Add the newly uploaded image to the savedImages array
       set((state) => ({
         savedImages: [response, ...state.savedImages],
         isLoading: false,
       }));
+
+      // Return the uploaded image data
+      return response;
     } catch (error) {
       set({ error: "Failed to upload image", isLoading: false });
       throw error;

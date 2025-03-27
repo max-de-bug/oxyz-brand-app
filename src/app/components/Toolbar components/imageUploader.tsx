@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useImageStore } from "@/app/store/imageStore";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
+import Image from "next/image";
 
 const ImageUploader = () => {
   const { session } = useAuth();
@@ -63,7 +64,19 @@ const ImageUploader = () => {
       setUploading(true);
 
       try {
-        await uploadImage(file);
+        // Upload the file and get the response
+        const uploadedImage = await uploadImage(file);
+
+        // Optionally refresh the complete image list from server
+        if (session?.user?.id) {
+          await fetchCloudinaryImages(session.user.id);
+        }
+
+        // Set the newly uploaded image as the current image
+        if (uploadedImage && uploadedImage.url) {
+          setImage(uploadedImage.url);
+        }
+
         event.target.value = ""; // Reset input
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -72,7 +85,7 @@ const ImageUploader = () => {
         setUploading(false);
       }
     },
-    [session, uploadImage]
+    [session, uploadImage, fetchCloudinaryImages, setImage]
   );
   const handleDeleteImage = useCallback(
     async (image: { publicId?: string; id?: string }) => {
@@ -219,7 +232,7 @@ const ImageUploader = () => {
           ) : savedImages.length > 0 ? (
             savedImages.map((image) => (
               <div
-                key={image.publicId}
+                key={image.id}
                 className={`relative p-2 border rounded ${
                   imageUrl === image.url ? "border-blue-500" : "border-gray-200"
                 }`}
@@ -238,15 +251,23 @@ const ImageUploader = () => {
                   </button>
                 </div>
                 <div className="flex justify-center p-2 bg-gray-50 rounded">
-                  <img
-                    src={image.url}
-                    alt={image.filename || "Image"}
-                    className={`object-contain max-h-24 cursor-pointer ${
-                      imageUrl === image.url ? "ring-2 ring-blue-500" : ""
-                    }`}
-                    style={{ maxWidth: "100%" }}
-                    onClick={() => handleSelectImage(image.url)}
-                  />
+                  {image.url ? (
+                    <Image
+                      src={image.url}
+                      alt={image.filename || "Image"}
+                      width={image.width || 200}
+                      height={image.height || 150}
+                      className={`object-contain max-h-24 cursor-pointer ${
+                        imageUrl === image.url ? "ring-2 ring-blue-500" : ""
+                      }`}
+                      style={{ maxWidth: "100%", height: "auto" }}
+                      onClick={() => handleSelectImage(image.url)}
+                    />
+                  ) : (
+                    <div className="h-24 w-full bg-gray-200 flex items-center justify-center text-gray-400 text-xs">
+                      No image preview
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => handleSelectImage(image.url)}
