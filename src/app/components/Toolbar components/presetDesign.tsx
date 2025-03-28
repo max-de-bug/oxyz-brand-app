@@ -278,7 +278,7 @@ const PresetDesigns = () => {
             </>
           ) : (
             <div className="py-4 text-center text-gray-500">
-              No presets found. Create some presets to get started.
+              No presets found.
             </div>
           )}
         </div>

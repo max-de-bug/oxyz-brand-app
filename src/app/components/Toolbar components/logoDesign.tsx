@@ -299,7 +299,7 @@ const LogoDesigns = () => {
             </>
           ) : (
             <div className="py-4 text-center text-gray-500">
-              No logos found. Upload some logos to get started.
+              No logos found.
             </div>
           )}
         </div>

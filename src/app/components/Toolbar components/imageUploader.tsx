@@ -1,54 +1,46 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import { Loader2, Upload, Plus, Trash2, RefreshCw, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useImageStore } from "@/app/store/imageStore";
 import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
-import Image from "next/image";
 import { Carousel } from "@/components/ui/carousel";
+import {
+  useUserImages,
+  useUploadImage,
+  useDeleteImage,
+} from "@/lib/api/queries";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 
 const ImageUploader = () => {
   const { session } = useAuth();
   const [uploading, setUploading] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Zustand store for UI state and selected image
+  const { imageUrl, setImage, savedImages, clearSavedImages } = useImageStore();
+
+  // React Query for data fetching and mutations
   const {
-    imageUrl,
-    setImage,
-    uploadImage,
-    deleteImage,
-    savedImages,
-    fetchCloudinaryImages,
-    clearSavedImages,
-  } = useImageStore();
+    data: imagesData,
+    isLoading: isLoadingImages,
+    refetch: refetchImages,
+  } = useUserImages(session?.user?.id, {
+    onSuccess: (data: { images?: any[] }) => {
+      // Update Zustand store with fetched images
+      // This ensures compatibility with existing code that uses the store
+      if (data?.images) {
+        useImageStore.setState({ savedImages: data.images });
+      }
+    },
+  } as any); // Use type assertion as a temporary fix
 
-  // Define loadImages function before using it in useEffect
-  const loadImages = useCallback(async () => {
-    if (!session) return;
-
-    setLoading(true);
-    try {
-      await fetchCloudinaryImages(session.user.id);
-    } catch (error) {
-      console.error("Error loading images:", error);
-      alert("Failed to load images. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [session, fetchCloudinaryImages]);
-
-  // Fetch Cloudinary images only when user is signed in
-  useEffect(() => {
-    if (session) {
-      loadImages();
-    } else {
-      // Clear saved images when user signs out
-      clearSavedImages();
-    }
-  }, [session, clearSavedImages, loadImages]);
+  const uploadImageMutation = useUploadImage();
+  const deleteImageMutation = useDeleteImage();
 
   const handleSelectImage = useCallback(
     (url: string) => {
@@ -64,25 +56,23 @@ const ImageUploader = () => {
 
       const file = event.target.files[0];
       setUploading(true);
-      setSuccessMessage(null); // Clear previous messages
+      setSuccessMessage(null);
 
       try {
-        // Upload the image
-        const uploadedImage = await uploadImage(file);
+        const uploadedImage = await uploadImageMutation.mutateAsync(file, {
+          onSuccess: (data) => {
+            // Set the newly uploaded image as the current image
+            if (data.url) {
+              setImage(data.url);
+            }
+          },
+        });
 
-        // Immediately refresh the image list after successful upload
-        if (session?.user?.id) {
-          await fetchCloudinaryImages(session.user.id);
-        }
+        // Show success message
+        setSuccessMessage("Image uploaded successfully!");
 
-        // Set the newly uploaded image as the current image
-        if (uploadedImage && uploadedImage.url) {
-          setImage(uploadedImage.url);
-          setSuccessMessage("Image uploaded successfully!");
-
-          // Clear success message after a few seconds
-          setTimeout(() => setSuccessMessage(null), 3000);
-        }
+        // Explicitly refetch images to ensure UI is up to date
+        await refetchImages();
 
         event.target.value = ""; // Reset input
       } catch (error) {
@@ -92,34 +82,33 @@ const ImageUploader = () => {
         setUploading(false);
       }
     },
-    [session, uploadImage, fetchCloudinaryImages, setImage]
+    [session, uploadImageMutation, setImage, refetchImages]
   );
 
   const handleDeleteImage = useCallback(
-    async (image: { publicId?: string; id?: string }) => {
+    async (image: { url: string | null; publicId?: string; id?: string }) => {
       if (!session) return;
       if (!confirm("Are you sure you want to delete this image?")) {
         return;
       }
 
       try {
-        setLoading(true);
-        // Use publicId for Cloudinary images if available, otherwise fall back to id
         const identifier = image.publicId || image.id;
         console.log("Attempting to delete image:", identifier);
 
-        // Ensure identifier is not undefined before passing to deleteImage
-        if (identifier) {
-          await deleteImage(identifier);
-
-          // Refresh the image list
-          await fetchCloudinaryImages(session.user.id);
-        } else {
+        if (!identifier) {
           throw new Error("Image identifier is missing");
         }
 
-        // Show success message
-        alert("Image deleted successfully");
+        await deleteImageMutation.mutateAsync(identifier);
+
+        // If the deleted image was the current main image, clear it
+        if (imageUrl === image.url) {
+          setImage("");
+        }
+
+        // Force a fresh fetch of images
+        await refetchImages();
       } catch (error) {
         console.error("Error deleting image:", error);
         alert(
@@ -127,11 +116,9 @@ const ImageUploader = () => {
             ? `Failed to delete image: ${error.message}`
             : "Failed to delete image. Please try again."
         );
-      } finally {
-        setLoading(false);
       }
     },
-    [session, deleteImage, fetchCloudinaryImages]
+    [session, deleteImageMutation, imageUrl, setImage, refetchImages]
   );
 
   // Show a sign-in message if not signed in
@@ -152,6 +139,7 @@ const ImageUploader = () => {
     ),
     []
   );
+
   const renderImageCard = useCallback(
     (image: {
       id: string;
@@ -175,13 +163,13 @@ const ImageUploader = () => {
             onClick={() => handleDeleteImage(image)}
             className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
             title="Delete image"
-            disabled={loading}
+            disabled={deleteImageMutation.isPending}
           >
             <Trash2 size={14} />
           </button>
         </div>
         <div className="flex justify-center p-2 bg-gray-50 rounded">
-          <img
+          <Image
             src={image.url}
             alt={image.filename || "Image"}
             className={`object-contain max-h-24 cursor-pointer ${
@@ -198,14 +186,20 @@ const ImageUploader = () => {
               ? "bg-blue-500 text-white hover:bg-blue-600"
               : "bg-gray-800 hover:bg-gray-700"
           } flex items-center justify-center gap-1`}
-          disabled={loading}
+          disabled={isLoadingImages}
         >
           <Plus size={12} />
           {imageUrl === image.url ? "Selected" : "Set as Main Image"}
         </button>
       </div>
     ),
-    [imageUrl, handleDeleteImage, handleSelectImage, loading]
+    [
+      imageUrl,
+      handleDeleteImage,
+      handleSelectImage,
+      isLoadingImages,
+      deleteImageMutation.isPending,
+    ]
   );
 
   return (
@@ -214,11 +208,11 @@ const ImageUploader = () => {
         <h2 className="text-lg font-semibold">Image Upload</h2>
         {session && (
           <button
-            onClick={loadImages}
+            onClick={() => refetchImages()}
             className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 hover:bg-gray-700"
-            disabled={loading}
+            disabled={isLoadingImages}
           >
-            {loading ? (
+            {isLoadingImages ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <RefreshCw size={16} />
@@ -241,13 +235,20 @@ const ImageUploader = () => {
               accept="image/*"
               className="hidden"
               onChange={handleUpload}
-              disabled={uploading}
+              disabled={uploading || uploadImageMutation.isPending}
             />
           </label>
-          {uploading && (
+          {(uploading || uploadImageMutation.isPending) && (
             <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
               <Loader2 size={16} className="animate-spin" />
               <span>Uploading...</span>
+            </div>
+          )}
+          {uploadImageMutation.isError && (
+            <div className="mt-2 p-2 bg-red-100 text-red-700 rounded text-sm">
+              {uploadImageMutation.error instanceof Error
+                ? uploadImageMutation.error.message
+                : "Upload failed"}
             </div>
           )}
           {successMessage && (
@@ -293,7 +294,7 @@ const ImageUploader = () => {
       {/* Saved Images Carousel - only show when signed in */}
       {session && (
         <div className="mt-6">
-          {loading ? (
+          {isLoadingImages ? (
             <div className="flex justify-center py-8">
               <Loader2 className="animate-spin" />
             </div>
