@@ -4,11 +4,11 @@ import {
   useQueryClient,
   UseQueryOptions,
 } from "@tanstack/react-query";
-import { apiClient } from "../api-client";
 import { SavedImage } from "@/app/store/imageStore";
 import { Preset } from "@/app/store/presetStore";
 import { useImageStore } from "@/app/store/imageStore";
-
+import { Logo } from "@/app/services/logos.service";
+import { apiClient } from "@/lib/api-client";
 // User queries
 export function useUserProfile() {
   return useQuery({
@@ -233,19 +233,18 @@ export function useDeleteImage() {
 // ========================
 
 // Fetch cloudinary logos
-export function useCloudinaryLogos(
-  folder = "logos",
-  options?: UseQueryOptions
-) {
+export function useCloudinaryLogos(folder = "logos") {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ["logos", "cloudinary", folder],
     queryFn: async () => {
       try {
-        const data = await apiClient.get<{
-          resources: any[];
+        const data = await apiClient.getFromCloudinary<{
+          resources: Logo[];
           next_cursor: string | null;
-        }>(`/logos/cloudinary?folder=${folder}`);
-
+        }>("/logos", folder);
+        console.log("data", data);
         return data;
       } catch (endpointErr) {
         console.warn(
@@ -253,32 +252,37 @@ export function useCloudinaryLogos(
         );
 
         // Fallback to general Cloudinary resources endpoint
-        const response = await apiClient.get<any>(
-          `/cloudinary/resources?folder=${folder}`
-        );
+        const response =
+          await apiClient.getCloudinaryResources<CloudinaryResponse>(folder);
+
+        // Convert Cloudinary resources to our Logo format
+        const logos = response.resources.map((resource) => ({
+          id: resource.public_id,
+          url: resource.secure_url,
+          filename: resource.public_id.split("/").pop() || resource.public_id,
+          mimeType: `image/${resource.format}`,
+          size: resource.bytes,
+          width: resource.width,
+          height: resource.height,
+          publicId: resource.public_id,
+          isDefault:
+            resource.public_id.includes("/defaults/") ||
+            resource.tags?.includes("default") ||
+            false,
+          createdAt: resource.created_at,
+          updatedAt: resource.created_at,
+        }));
 
         return {
-          resources: response.resources.map((resource: any) => ({
-            id: resource.public_id,
-            url: resource.secure_url,
-            filename: resource.public_id.split("/").pop() || resource.public_id,
-            mimeType: `image/${resource.format}`,
-            size: resource.bytes,
-            width: resource.width,
-            height: resource.height,
-            publicId: resource.public_id,
-            isDefault:
-              resource.public_id.includes("/defaults/") ||
-              resource.tags?.includes("default") ||
-              false,
-            createdAt: resource.created_at,
-            updatedAt: resource.created_at,
-          })),
+          resources: logos,
           next_cursor: response.next_cursor || null,
         };
       }
     },
-    ...options,
+    staleTime: 0,
+    gcTime: 0,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -305,9 +309,12 @@ export function useDeleteLogo() {
     mutationFn: async (id: string) => {
       return await apiClient.delete(`/logos/${id}`);
     },
-    onSuccess: () => {
-      // Invalidate logo queries to trigger a refetch
-      queryClient.invalidateQueries({ queryKey: ["logos"] });
+    onSuccess: async () => {
+      await queryClient.removeQueries({ queryKey: ["logos"] });
+      await queryClient.removeQueries({ queryKey: ["logos", "cloudinary"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["logos", "cloudinary"],
+      });
     },
   });
 }
@@ -317,86 +324,18 @@ export function useDeleteLogo() {
 // ========================
 
 // Fetch cloudinary presets
-export function useCloudinaryPresets(
-  folder = "presets",
-  options?: UseQueryOptions
-) {
+export function useCloudinaryPresets(folder = "presets") {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ["presets", "cloudinary", folder],
     queryFn: async () => {
-      console.log("Fetching Cloudinary presets...");
-
-      // Use the correct URL with query parameters
       const url = `/presets?source=cloudinary&folder=${folder}&includeDefaults=true`;
       const response = await apiClient.get<any>(url);
-
-      console.log("Cloudinary response:", response);
-
-      // Check if the response has the expected structure
-      if (!response || !response.resources) {
-        console.error("Invalid response structure:", response);
-        return { resources: [], next_cursor: null };
-      }
-
-      // Map Cloudinary resources to Preset format
-      const cloudinaryPresets = response.resources
-        .map((resource: any) => {
-          try {
-            // Extract filter values from context if available
-            const filter = resource.context?.custom || {};
-
-            // Use the id or publicId property, with fallbacks
-            const identifier = resource.public_id || resource.public_id || "";
-            const name =
-              identifier.split("/").pop() ||
-              resource.filename ||
-              "Unnamed Preset";
-
-            // Get the URL - prioritize the property that actually exists in your data
-            const imageUrl = resource.url || resource.secure_url || "";
-
-            return {
-              id:
-                resource.id ||
-                `preset-${Date.now()}-${Math.random()
-                  .toString(36)
-                  .substr(2, 9)}`,
-              name: name,
-              filter: {
-                brightness: parseFloat(filter.brightness) || 100,
-                contrast: parseFloat(filter.contrast) || 100,
-                saturation: parseFloat(filter.saturation) || 100,
-                sepia: parseFloat(filter.sepia) || 0,
-                opacity: parseFloat(filter.opacity) || 100,
-              },
-              isDefault:
-                resource.isDefault ||
-                resource.tags?.includes("default") ||
-                false,
-              createdAt:
-                resource.created_at ||
-                resource.created_at ||
-                new Date().toISOString(),
-              updatedAt:
-                resource.updatedAt ||
-                resource.created_at ||
-                new Date().toISOString(),
-              url: imageUrl, // Use the correctly extracted URL
-              publicId: resource.public_id || resource.public_id || "",
-            };
-          } catch (err) {
-            console.error("Error mapping resource:", resource, err);
-            return null;
-          }
-        })
-        .filter(Boolean);
-
-      return {
-        resources: cloudinaryPresets,
-        next_cursor: response.next_cursor || null,
-      };
+      return response;
     },
-    ...options,
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 
@@ -408,9 +347,12 @@ export function useDeletePreset() {
     mutationFn: async (id: string) => {
       return await apiClient.delete(`/presets/${id}`);
     },
-    onSuccess: () => {
-      // Invalidate preset queries to trigger a refetch
-      queryClient.invalidateQueries({ queryKey: ["presets"] });
+    onSuccess: async () => {
+      await queryClient.removeQueries({ queryKey: ["presets"] });
+      await queryClient.removeQueries({ queryKey: ["presets", "cloudinary"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["presets", "cloudinary"],
+      });
     },
   });
 }

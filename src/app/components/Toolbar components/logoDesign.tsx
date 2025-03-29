@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/app/store/auth-context";
 import { Carousel } from "@/components/ui/carousel";
+import { useCloudinaryLogos, useDeleteLogo } from "@/lib/api/queries";
 
 const LogoDesigns = () => {
   const { session } = useAuth();
@@ -29,26 +30,29 @@ const LogoDesigns = () => {
 
   const { logos, addLogo } = useImageStore();
 
+  // Separate the query and mutation hooks
   const {
-    cloudinaryLogos: displayLogos,
-    selectedLogo,
-    loading,
+    data: logosData,
+    isLoading: loading,
     error,
-    nextCursor,
+    refetch: refetchLogos,
+  } = useCloudinaryLogos();
+
+  // Use the delete mutation hook separately
+  const deleteLogoMutation = useDeleteLogo();
+
+  const {
     fetchCloudinaryLogos,
     loadMoreCloudinaryLogos,
     setSelectedLogo,
     setDefault,
     uploadLogo,
-    deleteLogo,
+    selectedLogo,
   } = useLogoStore();
 
-  // Fetch logos when session changes
-  useEffect(() => {
-    if (session) {
-      fetchCloudinaryLogos();
-    }
-  }, [session, fetchCloudinaryLogos]);
+  // Use the data from React Query
+  const displayLogos = logosData?.resources || [];
+  const nextCursor = logosData?.next_cursor;
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || !event.target.files[0]) return;
@@ -104,10 +108,15 @@ const LogoDesigns = () => {
   const handleDeleteLogo = useCallback(
     async (id: string) => {
       if (window.confirm("Are you sure you want to delete this logo?")) {
-        await deleteLogo(id);
+        try {
+          await deleteLogoMutation.mutateAsync(id);
+          await refetchLogos();
+        } catch (error) {
+          console.error("Error deleting logo:", error);
+        }
       }
     },
-    [deleteLogo]
+    [deleteLogoMutation, refetchLogos]
   );
 
   // Add this function to remove logo from canvas
@@ -202,7 +211,7 @@ const LogoDesigns = () => {
       <div className="flex justify-between mb-4">
         <h2 className="text-lg font-semibold">Logo Designs</h2>
         <button
-          onClick={(e) => fetchCloudinaryLogos()}
+          onClick={() => refetchLogos()}
           className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-600"
           disabled={loading}
         >
@@ -216,7 +225,7 @@ const LogoDesigns = () => {
 
       {error && (
         <div className="p-2 mb-4 text-sm text-red-700 bg-red-100 rounded">
-          {error}
+          {error.message || String(error)}
         </div>
       )}
 
@@ -291,7 +300,7 @@ const LogoDesigns = () => {
                 Available Logos ({displayLogos.length})
               </h3>
               <Carousel
-                items={displayLogos.map((logo) => renderLogoCard(logo))}
+                items={displayLogos.map((logo: any) => renderLogoCard(logo))}
                 itemsPerView={2}
                 spacing={16}
                 className="py-3"

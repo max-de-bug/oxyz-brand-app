@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/app/store/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { Carousel } from "@/components/ui/carousel";
+import { useCloudinaryPresets, useDeletePreset } from "@/lib/api/queries";
 
 const PresetDesigns = () => {
   const { session } = useAuth();
@@ -39,11 +40,25 @@ const PresetDesigns = () => {
     deletePreset,
   } = usePresetStore();
 
-  useEffect(() => {
-    if (session) {
-      fetchCloudinaryPresets();
-    }
-  }, [session, fetchCloudinaryPresets]);
+  // React Query hooks
+  const {
+    data: presetsData,
+    isLoading: loadingPresets,
+    error: presetsError,
+    refetch: refetchPresets,
+  } = useCloudinaryPresets();
+
+  const deletePresetMutation = useDeletePreset();
+
+  // Use the data from React Query
+  const displayPresetsData = presetsData?.resources || [];
+  const nextCursorData = presetsData?.next_cursor;
+
+  // useEffect(() => {
+  //   if (session) {
+  //     fetchCloudinaryPresets();
+  //   }
+  // }, [session, fetchCloudinaryPresets]);
 
   useEffect(() => {
     if (selectedPreset) {
@@ -104,7 +119,12 @@ const PresetDesigns = () => {
 
   const handleDeletePreset = async (id: string) => {
     if (window.confirm("Are you sure you want to delete this preset?")) {
-      await deletePreset(id);
+      try {
+        await deletePresetMutation.mutateAsync(id);
+        await refetchPresets();
+      } catch (error) {
+        console.error("Error deleting preset:", error);
+      }
     }
   };
 
@@ -210,11 +230,11 @@ const PresetDesigns = () => {
       <div className="flex justify-between mb-4">
         <h2 className="text-lg font-semibold">Preset Designs</h2>
         <button
-          onClick={(e) => fetchCloudinaryPresets()}
+          onClick={() => refetchPresets()}
           className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-700"
-          disabled={loading}
+          disabled={loadingPresets}
         >
-          {loading ? (
+          {loadingPresets ? (
             <Loader2 size={16} className="animate-spin" />
           ) : (
             <RefreshCw size={16} />
@@ -252,25 +272,27 @@ const PresetDesigns = () => {
         </div>
       </div>
 
-      {error && (
+      {presetsError && (
         <div className="p-2 mb-4 text-sm text-red-700 bg-red-100 rounded">
-          {error}
+          {presetsError.message}
         </div>
       )}
 
-      {loading ? (
+      {loadingPresets ? (
         <div className="flex justify-center py-8">
           <Loader2 className="animate-spin" />
         </div>
       ) : (
         <div className="mt-6">
-          {displayPresets && displayPresets.length > 0 ? (
+          {displayPresetsData && displayPresetsData.length > 0 ? (
             <>
               <h3 className="text-sm font-medium mb-4">
-                Available Presets ({displayPresets.length})
+                Available Presets ({displayPresetsData.length})
               </h3>
               <Carousel
-                items={displayPresets.map((preset) => renderPresetCard(preset))}
+                items={displayPresetsData.map((preset: any) =>
+                  renderPresetCard(preset)
+                )}
                 itemsPerView={2}
                 spacing={16}
                 className="py-3"
@@ -284,7 +306,7 @@ const PresetDesigns = () => {
         </div>
       )}
 
-      {nextCursor && (
+      {nextCursorData && (
         <div className="mt-4 text-center">
           <button
             onClick={loadMoreCloudinaryPresets}
