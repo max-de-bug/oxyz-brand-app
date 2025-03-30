@@ -60,27 +60,6 @@ const PresetDesigns = () => {
   //   }
   // }, [session, fetchCloudinaryPresets]);
 
-  useEffect(() => {
-    if (selectedPreset) {
-      if (selectedPreset.filter) {
-        setFilter({
-          brightness: selectedPreset.filter.brightness || 100,
-          contrast: selectedPreset.filter.contrast || 100,
-          saturation: selectedPreset.filter.saturation || 100,
-          sepia: selectedPreset.filter.sepia || 0,
-          opacity:
-            selectedPreset.filter.opacity !== undefined
-              ? selectedPreset.filter.opacity
-              : 100,
-        });
-      }
-
-      if (selectedPreset.url) {
-        setImage(selectedPreset.url);
-      }
-    }
-  }, [selectedPreset, setFilter, setImage]);
-
   const isPresetSelected = useCallback(
     (presetId: string) => {
       return activePreset?.id === presetId;
@@ -93,20 +72,35 @@ const PresetDesigns = () => {
       e.stopPropagation();
     }
 
+    // Prevent unnecessary renders by checking if this preset is already active
+    if (activePreset?.id === preset.id) {
+      console.log("Preset already active, no need to re-apply");
+      return;
+    }
+
+    // Create a stable filter copy
+    const filterSettings = preset.filter
+      ? {
+          brightness: preset.filter.brightness || 100,
+          contrast: preset.filter.contrast || 100,
+          saturation: preset.filter.saturation || 100,
+          sepia: preset.filter.sepia || 0,
+          opacity:
+            preset.filter.opacity !== undefined ? preset.filter.opacity : 100,
+        }
+      : null;
+
+    // Use React batch update to apply changes simultaneously
+    // This ensures a single render cycle for all state updates
     setActivePreset(preset);
     setSelectedPreset(preset);
 
-    if (preset.filter) {
-      setFilter({
-        brightness: preset.filter.brightness || 100,
-        contrast: preset.filter.contrast || 100,
-        saturation: preset.filter.saturation || 100,
-        sepia: preset.filter.sepia || 0,
-        opacity:
-          preset.filter.opacity !== undefined ? preset.filter.opacity : 100,
-      });
+    // If we have filter settings, apply them
+    if (filterSettings) {
+      setFilter(filterSettings);
     }
 
+    // Apply image if present
     if (preset.url) {
       setImage(preset.url);
     }

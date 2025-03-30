@@ -177,6 +177,8 @@ const ImageUploader = () => {
             }`}
             style={{ maxWidth: "100%" }}
             onClick={() => handleSelectImage(image.url)}
+            width={100}
+            height={100}
           />
         </div>
         <button

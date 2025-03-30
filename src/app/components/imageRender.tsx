@@ -215,42 +215,41 @@ const ImageRender = () => {
   useEffect(() => {
     if (imageUrl) {
       console.log("Loading main image from URL:", imageUrl);
-      const img = new Image();
 
-      // Set crossOrigin before setting src
+      // Important: Don't clear the previous image until the new one is ready
+      const img = new Image();
       img.crossOrigin = "anonymous";
 
-      // Handle load errors properly
+      // Preload the image before updating the state
       img.onload = () => {
         console.log("Main image loaded successfully:", imageUrl);
         console.log("Image dimensions:", {
           width: img.width,
           height: img.height,
         });
+
+        // Update state only after the image is fully loaded
         setMainImage(img);
 
-        // Force a render after the image is loaded with increased delay
+        // Force a synchronous render with the new image
         setTimeout(() => {
-          console.log("Canvas rendered after image load, opacity:", opacity);
           renderCanvas();
-        }, 200);
+        }, 0);
       };
 
       img.onerror = (err) => {
         console.error("Error loading main image:", err);
-        setMainImage(null);
       };
 
-      // For Cloudinary URLs, ensure no caching parameters that might interfere with rendering
+      // For Cloudinary URLs, add cache-busting parameter
       let imageSrc = imageUrl;
       if (imageUrl.includes("cloudinary.com")) {
-        // Ensure we're not getting a cached version
         imageSrc = `${imageUrl}${
           imageUrl.includes("?") ? "&" : "?"
-        }t=${new Date().getTime()}`;
+        }t=${Date.now()}`;
       }
 
-      // Set src after setting up event handlers
+      // Set src after handlers are established
       img.src = imageSrc;
     } else {
       console.log("No image URL provided, clearing main image");
@@ -308,65 +307,58 @@ const ImageRender = () => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false }); // Use non-alpha for better performance
     if (!ctx) return;
 
-    // Parse aspect ratio
+    // Parse aspect ratio once
     const [widthRatio, heightRatio] = designStoreAspectRatio
       .split(":")
       .map(Number);
     const ratio = widthRatio / heightRatio;
 
-    // Set canvas dimensions
-    canvas.width = canvasWidth;
-    canvas.height = canvasWidth / ratio;
+    // Ensure canvas has proper dimensions before drawing
+    if (canvas.width !== canvasWidth || canvas.height !== canvasWidth / ratio) {
+      canvas.width = canvasWidth;
+      canvas.height = canvasWidth / ratio;
+    }
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Clear canvas with solid color for performance
+    ctx.fillStyle = "#f9f9f9";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     // Draw main image if available
-    if (mainImage) {
-      // Calculate image scaling to maintain aspect ratio
-      const imageRatio = mainImage.width / mainImage.height;
-      let drawWidth = canvas.width;
-      let drawHeight = canvas.height;
-      let offsetX = 0;
-      let offsetY = 0;
+    if (mainImage && mainImage.complete && mainImage.naturalWidth > 0) {
+      // Save the current state
+      ctx.save();
 
-      // Adjust dimensions to prevent stretching
+      // Apply filters
+      ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) sepia(${sepia}%)`;
+      ctx.globalAlpha = opacity / 100;
+
+      // Calculate proper image scaling
+      const imageRatio = mainImage.width / mainImage.height;
+      let drawWidth,
+        drawHeight,
+        offsetX = 0,
+        offsetY = 0;
+
       if (imageRatio > ratio) {
         // Image is wider than canvas ratio
+        drawWidth = canvas.width;
         drawHeight = canvas.width / imageRatio;
         offsetY = (canvas.height - drawHeight) / 2;
       } else {
         // Image is taller than canvas ratio
+        drawHeight = canvas.height;
         drawWidth = canvas.height * imageRatio;
         offsetX = (canvas.width - drawWidth) / 2;
       }
 
-      // Save context state
-      ctx.save();
-
-      // Apply filters
-      ctx.filter = `
-        brightness(${brightness}%) 
-        contrast(${contrast}%) 
-        saturate(${saturation}%) 
-        sepia(${sepia}%)
-      `;
-
-      // Set opacity
-      ctx.globalAlpha = opacity / 100;
-
-      // Draw image with proper scaling
+      // Draw image in one operation
       ctx.drawImage(mainImage, offsetX, offsetY, drawWidth, drawHeight);
 
-      // Restore context state
+      // Restore the context state
       ctx.restore();
-    } else {
-      // Background for empty canvas
-      ctx.fillStyle = "#f9f9f9";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
 
     // Calculate logo rects for hit testing
@@ -547,6 +539,25 @@ const ImageRender = () => {
     mouseY,
     designStoreAspectRatio,
   ]);
+
+  // Replace the debounced renderCanvas with a more efficient approach
+  useEffect(() => {
+    // Use requestAnimationFrame for smoother rendering
+    let animationFrameId: number;
+
+    const performRender = () => {
+      renderCanvas();
+      animationFrameId = requestAnimationFrame(performRender);
+    };
+
+    // Start the render loop
+    animationFrameId = requestAnimationFrame(performRender);
+
+    // Clean up
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [renderCanvas]);
 
   // Force a complete render of the canvas
   const forceRender = useCallback(() => {
