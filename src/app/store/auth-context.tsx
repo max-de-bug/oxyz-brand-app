@@ -11,6 +11,7 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Session, User, AuthError } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
+import { useQuery } from "@tanstack/react-query";
 
 type AuthContextType = {
   session: Session | null;
@@ -32,6 +33,9 @@ interface DefaultImage {
   height: number;
 }
 
+// Add query key constant
+const DEFAULT_IMAGE_QUERY_KEY = ["user", "default-image"];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const supabase = createClientComponentClient();
@@ -40,7 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<AuthError | null>(null);
-  const [defaultImage, setDefaultImage] = useState<DefaultImage | null>(null);
+
+  // Replace useState with useQuery for default image
+  const { data: defaultImage } = useQuery({
+    queryKey: DEFAULT_IMAGE_QUERY_KEY,
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<DefaultImage>(
+          "users/defaults/image"
+        );
+        return response;
+      } catch (error) {
+        console.error("Error fetching default user image:", error);
+        return null;
+      }
+    },
+    // Only fetch when there's a user session
+    enabled: !!session,
+    // Cache the result for 5 minutes
+    staleTime: 5 * 60 * 1000,
+    // Keep the data in cache for 30 minutes
+    gcTime: 30 * 60 * 1000,
+  });
 
   // Function to refresh the auth state
   const refreshAuthState = useCallback(async () => {
@@ -97,21 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [supabase.auth, refreshAuthState]);
-
-  useEffect(() => {
-    // Fetch default image when component mounts
-    const fetchDefaultImage = async () => {
-      try {
-        const response = await apiClient.get<DefaultImage>(
-          "users/defaults/image"
-        );
-        setDefaultImage(response);
-      } catch (error) {
-        console.error("Error fetching default user image:", error);
-      }
-    };
-    fetchDefaultImage();
-  }, []);
 
   // Sign in with magic link
   const signInWithMagicLink = async (email: string) => {
@@ -174,7 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithMagicLink,
     signOut,
     refreshAuthState,
-    defaultImage,
+    defaultImage: defaultImage || null,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
