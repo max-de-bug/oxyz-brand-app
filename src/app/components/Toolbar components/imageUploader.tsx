@@ -263,35 +263,43 @@ const ImageUploader = () => {
         renderSignInMessage()
       )}
 
-      {/* Current Image Section - always show if there's an image */}
-      {imageUrl && (
-        <div className="mb-4">
-          <h3 className="text-sm font-medium mb-2">Current Image</h3>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="default" className="flex items-center gap-1 pr-1">
+      {/* Active Images Section */}
+      <div className="mb-4">
+        <h3 className="text-sm font-medium mb-2">
+          Active Images ({imageUrl ? 1 : 0})
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {imageUrl ? (
+            <Badge
+              variant="default"
+              className="group flex items-center gap-2 cursor-pointer pr-2"
+            >
               <img
                 src={imageUrl}
                 alt="Current"
                 className="w-4 h-4 object-contain"
               />
-              <span className="max-w-[100px] truncate">
+              <span className="max-w-[60px] truncate">
                 {imageUrl.split("/").pop()?.split("?")[0] || "Image"}
               </span>
               <button
                 onClick={() => {
                   if (confirm("Remove this image from canvas?")) {
-                    setImage(""); // Clear the current image
+                    setImage("");
                   }
                 }}
-                className="ml-1 text-red-400 hover:text-red-600 p-1 rounded-full"
-                title="Remove from canvas"
+                className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
               >
                 <Trash2 size={12} />
               </button>
             </Badge>
-          </div>
+          ) : (
+            <span className="text-xs text-gray-500">
+              No image added to canvas
+            </span>
+          )}
         </div>
-      )}
+      </div>
 
       {/* Saved Images Carousel - only show when signed in */}
       {session && (
@@ -305,6 +313,7 @@ const ImageUploader = () => {
               <h3 className="text-sm font-medium mb-4">
                 Your Images ({savedImages.length})
               </h3>
+
               <Carousel
                 items={savedImages.map((image) => renderImageCard(image))}
                 itemsPerView={2}
