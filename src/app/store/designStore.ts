@@ -56,6 +56,7 @@ interface DesignState {
   loading: boolean;
   error: string | null;
   aspectRatio: string;
+  setCurrentDesignId: (id: string | null) => void;
 
   setRotation: (rotation: number) => void;
   setColorValue: (colorValue: string) => void;
@@ -219,6 +220,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
     loading: false,
     error: null,
     aspectRatio: "4:3",
+    setCurrentDesignId: (id) => set({ currentDesignId: id }),
 
     setRotation: (rotation) => set({ rotation }),
     setColorValue: (colorValue) => set({ colorValue }),

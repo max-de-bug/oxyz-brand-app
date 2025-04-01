@@ -9,6 +9,7 @@ import { Preset } from "@/app/store/presetStore";
 import { useImageStore } from "@/app/store/imageStore";
 import { Logo } from "@/app/services/logos.service";
 import { apiClient } from "@/lib/api-client";
+import { toast } from "@/hooks/use-toast";
 // User queries
 export function useUserProfile() {
   return useQuery({
@@ -356,3 +357,103 @@ export function useDeletePreset() {
     },
   });
 }
+
+// Add this type
+interface SaveDesign {
+  id: string;
+  imageUrl: string;
+  name: string;
+  filter?: {
+    brightness: number;
+    contrast: number;
+    saturation: number;
+    sepia: number;
+    opacity: number;
+  };
+  textOverlay?: {
+    text: string;
+    isVisible: boolean;
+    color: string;
+    fontFamily: string;
+    fontSize: number;
+    isBold: boolean;
+    isItalic: boolean;
+  };
+  logos?: Array<{
+    url: string;
+    position: { x: number; y: number };
+    size: number;
+  }>;
+  aspectRatio: string;
+}
+
+export const useSaveDesign = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (design: SaveDesign) => {
+      const response = await apiClient.post<{ id: string; url: string }>(
+        "designs",
+        design
+      );
+      return response;
+    },
+    onSuccess: () => {
+      // Invalidate saved designs query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ["saved-designs"] });
+    },
+  });
+};
+
+// Update useSavedDesigns to include better typing and error handling
+export const useSavedDesigns = () => {
+  return useQuery<SaveDesign[]>({
+    queryKey: ["saved-designs"],
+    queryFn: async () => {
+      const response = await apiClient.get<SaveDesign[]>("designs");
+      return response;
+    },
+  });
+};
+
+// Add a new mutation for deleting designs
+export const useDeleteSavedDesign = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (designId: string) => {
+      const response = await apiClient.delete(`/designs/${designId}`);
+      return response;
+    },
+    // Add optimistic update
+    onMutate: async (designId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["saved-designs"] });
+
+      // Snapshot the previous value
+      const previousDesigns = queryClient.getQueryData<SaveDesign[]>([
+        "saved-designs",
+      ]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<SaveDesign[]>(["saved-designs"], (old) => {
+        return (old || []).filter((design) => design.id !== designId);
+      });
+
+      return { previousDesigns };
+    },
+    // If the mutation fails, use the context returned from onMutate to roll back
+    onError: (err, designId, context) => {
+      queryClient.setQueryData(["saved-designs"], context?.previousDesigns);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete design. Please try again.",
+      });
+    },
+    // Always refetch after error or success
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["saved-designs"] });
+    },
+  });
+};
