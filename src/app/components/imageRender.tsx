@@ -1314,6 +1314,8 @@ const ImageRender = () => {
       confirm("Are you sure you want to remove this image from the canvas?")
     ) {
       clearMainImage();
+      // Also clear the current design selection
+      useDesignStore.getState().setCurrentDesignId(null);
     }
   };
 

@@ -168,17 +168,19 @@ const ImageUploader = () => {
             <Trash2 size={14} />
           </button>
         </div>
-        <div className="flex justify-center p-2 bg-gray-50 rounded">
+        <div className="relative aspect-square group overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
           <Image
             src={image.url}
             alt={image.filename || "Image"}
-            className={`object-contain max-h-24 cursor-pointer ${
-              imageUrl === image.url ? "ring-2 ring-blue-500" : ""
-            }`}
-            style={{ maxWidth: "100%" }}
+            className={`
+              w-full h-full object-cover cursor-pointer
+              transition-all duration-300 ease-in-out group-hover:scale-105
+              ${imageUrl === image.url ? "ring-2 ring-blue-500" : ""}
+            `}
+            fill={true}
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            priority={false}
             onClick={() => handleSelectImage(image.url)}
-            width={100}
-            height={100}
           />
         </div>
         <button
@@ -277,7 +279,7 @@ const ImageUploader = () => {
               <img
                 src={imageUrl}
                 alt="Current"
-                className="w-4 h-4 object-contain"
+                className="w-4 h-4 object-contain "
               />
               <span className="max-w-[60px] truncate">
                 {imageUrl.split("/").pop()?.split("?")[0] || "Image"}

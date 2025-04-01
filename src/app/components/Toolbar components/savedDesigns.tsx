@@ -175,6 +175,59 @@ const SavedDesigns = () => {
     }
   };
 
+  const handleLoadDesign = (design: SavedDesign) => {
+    // Set current design ID in the store
+    setCurrentDesignId(design.id);
+
+    // Load the main image
+    if (design.imageUrl) {
+      useImageStore.getState().setImage(design.imageUrl);
+    }
+
+    // Apply filters if present
+    if (design.filter) {
+      useImageStore.getState().setFilter({
+        brightness: design.filter.brightness,
+        contrast: design.filter.contrast,
+        saturation: design.filter.saturation,
+        sepia: design.filter.sepia,
+        opacity: design.filter.opacity,
+      });
+    }
+
+    // Clear existing logos first
+    useImageStore.getState().clearLogos();
+
+    // Add logos if present
+
+    // Set text overlay if present
+    if (design.textOverlay) {
+      useDesignStore.getState().setTextOverlay(design.textOverlay);
+    } else {
+      // Clear text overlay if not present in the design
+      useDesignStore.getState().setTextOverlay({
+        text: "",
+        isVisible: false,
+        color: "#000000",
+        fontFamily: "Arial",
+        fontSize: 24,
+        isBold: false,
+        isItalic: false,
+      });
+    }
+
+    // Set aspect ratio if present
+    if (design.aspectRatio) {
+      useDesignStore.getState().setAspectRatio(design.aspectRatio);
+    }
+
+    // Show success toast
+    toast({
+      title: "Design Loaded",
+      description: "The selected design has been loaded to the canvas.",
+    });
+  };
+
   // Return early if user is not authenticated
   if (!session) {
     return (
@@ -219,28 +272,46 @@ const SavedDesigns = () => {
           (savedDesigns as SavedDesign[]).map((design) => (
             <div
               key={design.id}
-              className={`relative aspect-square rounded-lg overflow-hidden border-2
+              className={`
+                relative aspect-square rounded-lg overflow-hidden border-2 cursor-pointer
                 ${
                   currentDesignId === design.id
                     ? "border-blue-500"
                     : "border-transparent"
                 }
+                transition-all duration-200 ease-in-out
+                hover:shadow-md hover:scale-[1.02] hover:border-blue-300
+                group
               `}
+              onClick={() => handleLoadDesign(design)}
             >
               <img
                 src={design.imageUrl}
                 alt={design.name}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-[1.05]"
               />
+              <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-200"></div>
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <p className="text-xs text-white font-medium truncate">
+                  {design.name}
+                </p>
+              </div>
               <button
-                onClick={() => handleDeleteDesign(design.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteDesign(design.id);
+                }}
                 disabled={deletingId === design.id}
-                className={`absolute top-1 right-1 p-1 rounded-full 
+                className={`
+                  absolute top-1 right-1 p-1 rounded-full
                   ${
                     showConfirmDelete === design.id
                       ? "bg-red-600 hover:bg-red-700"
                       : "bg-red-500 hover:bg-red-600"
-                  } text-white`}
+                  }
+                  text-white transform scale-90 opacity-0 group-hover:opacity-100 group-hover:scale-100
+                  transition-all duration-200 ease-in-out
+                `}
                 title={
                   showConfirmDelete === design.id
                     ? "Click again to confirm deletion"

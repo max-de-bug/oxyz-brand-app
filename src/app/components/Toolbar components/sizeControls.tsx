@@ -74,32 +74,9 @@ const SizeControls: FC<SizeControlsProps> = ({
 }) => {
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 my-4">
+      <div className="grid grid-cols-1 gap-4 my-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <label htmlFor="minSize" className="block text-xs font-medium">
-              Min Size:
-            </label>
-            <NumberInput
-              value={minSize}
-              onChange={setMinSize}
-              min={0}
-              max={10}
-              unit="px"
-            />
-          </div>
-          <input
-            type="range"
-            id="minSize"
-            min="0"
-            max="10"
-            className="w-full h-2 bg-neutral-200 rounded-lg appearance-none cursor-pointer dark:bg-neutral-700"
-            value={minSize}
-            onChange={(e) => setMinSize(Number(e.target.value))}
-          />
-        </div>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center flex-grow gap-2 mb-1">
             <label htmlFor="maxSize" className="block text-xs font-medium">
               Max Size:
             </label>
