@@ -100,6 +100,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
     // Clear everything in one action
     set({
       imageUrl: null,
+      logos: [],
       brightness: 100,
       contrast: 100,
       saturation: 100,
