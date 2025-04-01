@@ -4,6 +4,87 @@ import { useState } from "react";
 import { useImageStore } from "@/app/store/imageStore";
 import { Download, Copy, AlertCircle } from "lucide-react";
 
+export const captureVisibleCanvas = async (): Promise<string | null> => {
+  try {
+    console.log("Capturing visible canvas");
+
+    // Find the canvas element
+    const canvasElement = document.querySelector("canvas");
+    if (!canvasElement) {
+      console.error("Canvas element not found");
+      return null;
+    }
+
+    // Create a new canvas with the same dimensions as the visible canvas
+    const exportCanvas = document.createElement("canvas");
+    const visibleWidth = canvasElement.clientWidth;
+    const visibleHeight = canvasElement.clientHeight;
+
+    // Set dimensions to match the visible canvas
+    exportCanvas.width = visibleWidth;
+    exportCanvas.height = visibleHeight;
+
+    // Get context
+    const ctx = exportCanvas.getContext("2d");
+    if (!ctx) {
+      console.error("Failed to get export canvas context");
+      return null;
+    }
+
+    // Fill with white background
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, visibleWidth, visibleHeight);
+
+    // Draw the visible canvas onto our export canvas
+    ctx.drawImage(canvasElement, 0, 0, visibleWidth, visibleHeight);
+
+    // Try to get data URL
+    try {
+      const dataUrl = exportCanvas.toDataURL("image/png");
+      if (dataUrl && dataUrl.startsWith("data:")) {
+        console.log("Successfully captured visible canvas");
+        return dataUrl;
+      }
+    } catch (dataUrlError) {
+      console.error(
+        "Error getting data URL from visible canvas:",
+        dataUrlError
+      );
+    }
+
+    // If toDataURL fails, try blob approach
+    return new Promise((resolve) => {
+      try {
+        exportCanvas.toBlob((blob) => {
+          if (!blob) {
+            console.error("Blob capture failed");
+            resolve(null);
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            console.log("Successfully read blob as data URL");
+            resolve(result);
+          };
+          reader.onerror = () => {
+            console.error("FileReader error");
+            resolve(null);
+          };
+          reader.readAsDataURL(blob);
+        }, "image/png");
+      } catch (blobError) {
+        console.error("Blob approach failed:", blobError);
+        resolve(null);
+      }
+    });
+  } catch (error) {
+    console.error("Error in captureVisibleCanvas:", error);
+    return null;
+  }
+};
+
 const ExportControls = () => {
   const { imageUrl } = useImageStore();
   const [activeTab, setActiveTab] = useState<"SVG" | "Video" | "PNG" | "GIF">(
@@ -123,88 +204,6 @@ const ExportControls = () => {
       console.error("Error during download:", downloadError);
       setExportError("Failed to download the image. Please try again.");
       setIsExporting(false);
-    }
-  };
-
-  // The successful method that captures the visible canvas
-  const captureVisibleCanvas = async (): Promise<string | null> => {
-    try {
-      console.log("Capturing visible canvas");
-
-      // Find the canvas element
-      const canvasElement = document.querySelector("canvas");
-      if (!canvasElement) {
-        console.error("Canvas element not found");
-        return null;
-      }
-
-      // Create a new canvas with the same dimensions as the visible canvas
-      const exportCanvas = document.createElement("canvas");
-      const visibleWidth = canvasElement.clientWidth;
-      const visibleHeight = canvasElement.clientHeight;
-
-      // Set dimensions to match the visible canvas
-      exportCanvas.width = visibleWidth;
-      exportCanvas.height = visibleHeight;
-
-      // Get context
-      const ctx = exportCanvas.getContext("2d");
-      if (!ctx) {
-        console.error("Failed to get export canvas context");
-        return null;
-      }
-
-      // Fill with white background
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, visibleWidth, visibleHeight);
-
-      // Draw the visible canvas onto our export canvas
-      ctx.drawImage(canvasElement, 0, 0, visibleWidth, visibleHeight);
-
-      // Try to get data URL
-      try {
-        const dataUrl = exportCanvas.toDataURL("image/png");
-        if (dataUrl && dataUrl.startsWith("data:")) {
-          console.log("Successfully captured visible canvas");
-          return dataUrl;
-        }
-      } catch (dataUrlError) {
-        console.error(
-          "Error getting data URL from visible canvas:",
-          dataUrlError
-        );
-      }
-
-      // If toDataURL fails, try blob approach
-      return new Promise((resolve) => {
-        try {
-          exportCanvas.toBlob((blob) => {
-            if (!blob) {
-              console.error("Blob capture failed");
-              resolve(null);
-              return;
-            }
-
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              console.log("Successfully read blob as data URL");
-              resolve(result);
-            };
-            reader.onerror = () => {
-              console.error("FileReader error");
-              resolve(null);
-            };
-            reader.readAsDataURL(blob);
-          }, "image/png");
-        } catch (blobError) {
-          console.error("Blob approach failed:", blobError);
-          resolve(null);
-        }
-      });
-    } catch (error) {
-      console.error("Error in captureVisibleCanvas:", error);
-      return null;
     }
   };
 

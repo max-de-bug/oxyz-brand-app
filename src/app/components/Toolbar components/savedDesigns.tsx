@@ -10,6 +10,7 @@ import {
   useDeleteSavedDesign,
 } from "@/lib/api/queries";
 import { toast } from "@/hooks/use-toast";
+import { captureVisibleCanvas } from "./exportControls";
 
 // Define the SavedDesign type
 interface SavedDesign {
@@ -47,9 +48,19 @@ const SavedDesigns = () => {
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  // Get access to the canvas capture function
+
   // Get current design state
-  const { imageUrl, logos, brightness, contrast, saturation, sepia, opacity } =
-    useImageStore();
+  const {
+    imageUrl,
+    logos,
+    brightness,
+    contrast,
+    saturation,
+    sepia,
+    opacity,
+    clearMainImage,
+  } = useImageStore();
 
   const { textOverlay, aspectRatio, currentDesignId, setCurrentDesignId } =
     useDesignStore();
@@ -73,9 +84,16 @@ const SavedDesigns = () => {
 
     setIsSaving(true);
     try {
+      // Capture canvas as image using the imported function
+      const capturedImage = await captureVisibleCanvas();
+
+      if (!capturedImage) {
+        throw new Error("Failed to capture canvas");
+      }
+
       // Prepare the design payload
       const designPayload = {
-        imageUrl,
+        imageUrl: capturedImage, // Send the captured canvas image
         name: `Design ${(savedDesigns as SavedDesign[]).length + 1}`,
         filter: {
           brightness,
@@ -122,6 +140,7 @@ const SavedDesigns = () => {
           description: "Click the delete button again to confirm.",
           duration: 3000,
         });
+        clearMainImage();
         return;
       }
 
