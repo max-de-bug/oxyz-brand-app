@@ -18,6 +18,7 @@ export interface CanvasLogo {
   url: string;
   size: number;
   position: { x: number; y: number };
+  rotation: number;
   isSelected: boolean;
 }
 
@@ -44,7 +45,7 @@ interface ImageState {
   // Actions
   setImage: (url: string) => void;
   clearMainImage: () => void;
-  addLogo: (url: string) => void;
+  addLogo: (url: string) => string;
   updateLogo: (id: string, updates: Partial<Omit<CanvasLogo, "id">>) => void;
   selectLogo: (id: string | null) => void;
   deleteLogo: (id: string) => void;
@@ -114,18 +115,18 @@ export const useImageStore = create<ImageState>((set, get) => ({
   },
 
   addLogo: (url) => {
+    const newLogo = {
+      id: uuidv4(),
+      url,
+      size: 20,
+      position: { x: 50, y: 50 },
+      rotation: 0,
+      isSelected: false,
+    };
     set((state) => ({
-      logos: [
-        ...state.logos,
-        {
-          id: uuidv4(),
-          url,
-          size: 20,
-          position: { x: 50, y: 50 },
-          isSelected: false,
-        },
-      ],
+      logos: [...state.logos, newLogo],
     }));
+    return newLogo.id;
   },
 
   updateLogo: (id, updates) => {

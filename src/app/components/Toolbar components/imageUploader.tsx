@@ -13,7 +13,6 @@ import {
   useUploadImage,
   useDeleteImage,
 } from "@/lib/api/queries";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 
 const ImageUploader = () => {
@@ -148,55 +147,66 @@ const ImageUploader = () => {
       filename?: string;
       width?: number;
       height?: number;
-    }) => (
-      <div
-        key={image.id}
-        className={`relative p-2 border rounded ${
-          imageUrl === image.url ? "border-blue-500" : "border-gray-200"
-        }`}
-      >
-        <div className="flex justify-between mb-2">
-          <div className="text-xs truncate max-w-[80%]">
-            {image.filename || "Image"}
+    }) => {
+      // Ensure url is valid before rendering the image
+      if (!image.url) {
+        console.error("Invalid image URL for image:", image.id);
+        return null;
+      }
+
+      return (
+        <div
+          key={image.id}
+          className={`relative p-2 border rounded ${
+            imageUrl === image.url ? "border-blue-500" : "border-gray-200"
+          }`}
+        >
+          <div className="flex justify-between mb-2">
+            <div className="text-xs truncate max-w-[80%]">
+              {image.filename || "Image"}
+            </div>
+            <button
+              onClick={() => handleDeleteImage(image)}
+              className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
+              title="Delete image"
+              disabled={deleteImageMutation.isPending}
+            >
+              <Trash2 size={14} />
+            </button>
+          </div>
+          <div className="relative aspect-square group overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+            {/* Only render Image component if we have a valid URL */}
+            {image.url && (
+              <Image
+                src={image.url}
+                alt={image.filename || "Image"}
+                className={`
+                  w-full h-full object-cover cursor-pointer
+                  transition-all duration-300 ease-in-out group-hover:scale-105
+                  ${imageUrl === image.url ? "ring-2 ring-blue-500" : ""}
+                `}
+                fill={true}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                priority={false}
+                onClick={() => handleSelectImage(image.url)}
+              />
+            )}
           </div>
           <button
-            onClick={() => handleDeleteImage(image)}
-            className="text-red-500 hover:text-red-700 transition-colors duration-200 p-1 rounded"
-            title="Delete image"
-            disabled={deleteImageMutation.isPending}
+            onClick={() => handleSelectImage(image.url)}
+            className={`w-full text-xs p-1 mt-2 rounded ${
+              imageUrl === image.url
+                ? "bg-blue-500 text-white hover:bg-blue-600"
+                : "bg-gray-800 hover:bg-gray-700"
+            } flex items-center justify-center gap-1`}
+            disabled={isLoadingImages || !image.url}
           >
-            <Trash2 size={14} />
+            <Plus size={12} />
+            {imageUrl === image.url ? "Selected" : "Set as Main Image"}
           </button>
         </div>
-        <div className="relative aspect-square group overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-          <Image
-            src={image.url}
-            alt={image.filename || "Image"}
-            className={`
-              w-full h-full object-cover cursor-pointer
-              transition-all duration-300 ease-in-out group-hover:scale-105
-              ${imageUrl === image.url ? "ring-2 ring-blue-500" : ""}
-            `}
-            fill={true}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            priority={false}
-            onClick={() => handleSelectImage(image.url)}
-          />
-        </div>
-        <button
-          onClick={() => handleSelectImage(image.url)}
-          className={`w-full text-xs p-1 mt-2 rounded ${
-            imageUrl === image.url
-              ? "bg-blue-500 text-white hover:bg-blue-600"
-              : "bg-gray-800 hover:bg-gray-700"
-          } flex items-center justify-center gap-1`}
-          disabled={isLoadingImages}
-        >
-          <Plus size={12} />
-          {imageUrl === image.url ? "Selected" : "Set as Main Image"}
-        </button>
-      </div>
-    ),
+      );
+    },
     [
       imageUrl,
       handleDeleteImage,
@@ -317,7 +327,9 @@ const ImageUploader = () => {
               </h3>
 
               <Carousel
-                items={savedImages.map((image) => renderImageCard(image))}
+                items={savedImages
+                  .filter((image) => !!image.url) // Filter out images with no URL
+                  .map((image) => renderImageCard(image))}
                 itemsPerView={2}
                 spacing={16}
                 className="py-3"

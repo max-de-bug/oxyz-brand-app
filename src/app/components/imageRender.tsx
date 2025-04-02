@@ -50,6 +50,13 @@ const ImageRender = () => {
   const [mouseX, setMouseX] = useState(0);
   const [mouseY, setMouseY] = useState(0);
 
+  // Add these new state variables to the ImageRender component
+  const [isResizingCorner, setIsResizingCorner] = useState(false);
+  const [resizeCorner, setResizeCorner] = useState<
+    "topLeft" | "topRight" | "bottomLeft" | "bottomRight" | null
+  >(null);
+  const [resizeStartPoint, setResizeStartPoint] = useState({ x: 0, y: 0 });
+
   // Get values from the store
   const {
     imageUrl,
@@ -137,12 +144,14 @@ const ImageRender = () => {
       logos.forEach((logo) => {
         const logoImg = logoImages.get(logo.id);
         if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+          // Calculate basic dimensions
           const logoWidth = (canvas.width * logo.size) / 100;
           const logoHeight = (logoImg.height * logoWidth) / logoImg.width;
           const logoX = (canvas.width * logo.position.x) / 100 - logoWidth / 2;
           const logoY =
             (canvas.height * logo.position.y) / 100 - logoHeight / 2;
 
+          // For non-rotated logos or hit testing purposes, use the original rect
           rects.set(logo.id, {
             x: logoX,
             y: logoY,
@@ -176,9 +185,6 @@ const ImageRender = () => {
       // Set font properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
       const fontWeight = textOverlay.isBold ? "bold " : "";
-
-      // Use the fontFamily directly without quotes if it's a system font
-      // or with quotes if it's a custom font with hyphens
       const fontFamilyName = textOverlay.fontFamily.includes("-")
         ? `"${textOverlay.fontFamily}"`
         : textOverlay.fontFamily;
@@ -187,24 +193,46 @@ const ImageRender = () => {
 
       // Measure text
       const metrics = ctx.measureText(textOverlay.text);
+
+      // Get proper text metrics with padding for better visibility and clickability
+      const padding = Math.max(10, textOverlay.fontSize * 0.3); // Dynamic padding based on font size
+
+      // Calculate more accurate height (use actualBoundingBoxAscent if available)
+      const textHeight =
+        metrics.actualBoundingBoxAscent !== undefined
+          ? metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
+          : textOverlay.fontSize * 1.2; // Fallback with multiplier for better height
+
       const textWidth = metrics.width;
-      const textHeight = textOverlay.fontSize; // Use fontSize directly for height
 
       // Calculate position (centered around the text position)
-      const textX = (canvas.width * textPosition.x) / 100;
-      const textY = (canvas.height * textPosition.y) / 100;
+      const textX =
+        (canvas.width * textPosition.x) / 100 + (textOverlay.translationX || 0);
+      const textY =
+        (canvas.height * textPosition.y) / 100 +
+        (textOverlay.translationY || 0);
 
-      const rect = {
-        x: textX - textWidth / 2, // Center horizontally
-        y: textY - textHeight / 2, // Center vertically
-        width: textWidth,
-        height: textHeight,
+      // Create a rect without rotation applied, adding padding for easier selection
+      let rect = {
+        x: textX - (textWidth / 2 + padding), // Center horizontally with padding
+        y: textY - (textHeight / 2 + padding), // Center vertically with padding
+        width: textWidth + padding * 2,
+        height: textHeight + padding * 2,
       };
 
-      console.log("Calculated text rect:", rect, "Canvas dimensions:", {
-        width: canvas.width,
-        height: canvas.height,
-      });
+      // If there's rotation, we need to adjust the bounding box
+      if (textOverlay.rotation && textOverlay.rotation !== 0) {
+        // For rotated text, create a larger bounding box
+        const diagonal = Math.sqrt(
+          Math.pow(rect.width, 2) + Math.pow(rect.height, 2)
+        );
+        rect = {
+          x: textX - diagonal / 2,
+          y: textY - diagonal / 2,
+          width: diagonal,
+          height: diagonal,
+        };
+      }
 
       return rect;
     },
@@ -370,60 +398,107 @@ const ImageRender = () => {
       if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
         const rect = logoRects.get(logo.id);
         if (rect) {
-          // Draw the logo
-          ctx.drawImage(logoImg, rect.x, rect.y, rect.width, rect.height);
+          // Save context state
+          ctx.save();
+
+          // Calculate center of the logo
+          const centerX = rect.x + rect.width / 2;
+          const centerY = rect.y + rect.height / 2;
+
+          // Translate to the center of the logo
+          ctx.translate(centerX, centerY);
+
+          // Apply rotation if it exists
+          if (logo.rotation) {
+            ctx.rotate((logo.rotation * Math.PI) / 180);
+          }
+
+          // Draw the logo centered at the origin (after translation)
+          ctx.drawImage(
+            logoImg,
+            -rect.width / 2,
+            -rect.height / 2,
+            rect.width,
+            rect.height
+          );
 
           // Draw outline if logo is selected or hovered
           if (logo.isSelected || hoveredLogoId === logo.id) {
             ctx.strokeStyle = logo.isSelected ? "#3b82f6" : "#9ca3af";
             ctx.lineWidth = 2;
             ctx.setLineDash(logo.isSelected ? [] : [5, 5]);
-            ctx.strokeRect(rect.x, rect.y, rect.width, rect.height);
+            ctx.strokeRect(
+              -rect.width / 2,
+              -rect.height / 2,
+              rect.width,
+              rect.height
+            );
 
-            // Draw control points if selected
-            if (logo.isSelected) {
-              // Draw resize handle at bottom right
-              ctx.fillStyle = "#3b82f6";
-              const handleSize = 8;
+            // Draw resize handles at all corners
+            ctx.fillStyle = "#3b82f6";
+            const handleSize = 8;
+
+            // Draw 4 corner handles
+            const corners = [
+              { x: -rect.width / 2, y: -rect.height / 2 }, // Top-left
+              { x: rect.width / 2, y: -rect.height / 2 }, // Top-right
+              { x: -rect.width / 2, y: rect.height / 2 }, // Bottom-left
+              { x: rect.width / 2, y: rect.height / 2 }, // Bottom-right
+            ];
+
+            corners.forEach((corner) => {
               ctx.fillRect(
-                rect.x + rect.width - handleSize / 2,
-                rect.y + rect.height - handleSize / 2,
+                corner.x - handleSize / 2,
+                corner.y - handleSize / 2,
                 handleSize,
                 handleSize
               );
+            });
 
-              // Draw delete button at top right
-              ctx.fillStyle = "#ef4444";
-              ctx.beginPath();
-              ctx.arc(rect.x + rect.width, rect.y, 10, 0, Math.PI * 2);
-              ctx.fill();
+            // Draw delete button at top right
+            ctx.fillStyle = "#ef4444";
+            ctx.beginPath();
+            ctx.arc(rect.width / 2, -rect.height / 2, 10, 0, Math.PI * 2);
+            ctx.fill();
 
-              // Draw X in delete button
-              ctx.strokeStyle = "#ffffff";
-              ctx.lineWidth = 2;
-              ctx.setLineDash([]);
-              ctx.beginPath();
-              ctx.moveTo(rect.x + rect.width - 5, rect.y - 5);
-              ctx.lineTo(rect.x + rect.width + 5, rect.y + 5);
-              ctx.moveTo(rect.x + rect.width + 5, rect.y - 5);
-              ctx.lineTo(rect.x + rect.width - 5, rect.y + 5);
-              ctx.stroke();
-            }
-
+            // Draw X in delete button
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
             ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(rect.width / 2 - 5, -rect.height / 2 - 5);
+            ctx.lineTo(rect.width / 2 + 5, -rect.height / 2 + 5);
+            ctx.moveTo(rect.width / 2 + 5, -rect.height / 2 - 5);
+            ctx.lineTo(rect.width / 2 - 5, -rect.height / 2 + 5);
+            ctx.stroke();
           }
+
+          // Restore context
+          ctx.restore();
         }
       }
     });
 
     // Draw text overlay if visible and has text
     if (textOverlay.isVisible && textOverlay.text.trim() !== "") {
+      // Save current context state
+      ctx.save();
+
+      // Calculate text position, applying translationX and translationY offsets
+      const textX =
+        (canvas.width * textPosition.x) / 100 + textOverlay.translationX;
+      const textY =
+        (canvas.height * textPosition.y) / 100 + textOverlay.translationY;
+
+      // Translate to the text position for rotation
+      ctx.translate(textX, textY);
+
+      // Apply rotation (convert degrees to radians)
+      ctx.rotate((textOverlay.rotation * Math.PI) / 180);
+
       // Set text properties
       const fontStyle = textOverlay.isItalic ? "italic " : "";
       const fontWeight = textOverlay.isBold ? "bold " : "";
-
-      // Use the fontFamily directly without quotes if it's a system font
-      // or with quotes if it's a custom font with hyphens
       const fontFamilyName = textOverlay.fontFamily.includes("-")
         ? `"${textOverlay.fontFamily}"`
         : textOverlay.fontFamily;
@@ -433,14 +508,37 @@ const ImageRender = () => {
       ctx.textBaseline = "middle";
       ctx.textAlign = "center";
 
-      // Calculate text position
-      const textX = (canvas.width * textPosition.x) / 100;
-      const textY = (canvas.height * textPosition.y) / 100;
+      // Apply letter spacing if needed
+      if (textOverlay.spacing !== 0) {
+        // Draw each character separately with spacing
+        const chars = textOverlay.text.split("");
+        let totalWidth = 0;
 
-      // Draw text first (to ensure it's always visible)
-      ctx.fillText(textOverlay.text, textX, textY);
+        // First calculate total width with spacing
+        for (let i = 0; i < chars.length; i++) {
+          const charWidth = ctx.measureText(chars[i]).width;
+          totalWidth +=
+            charWidth + (i < chars.length - 1 ? textOverlay.spacing : 0);
+        }
 
-      // Then draw the bounding box and controls
+        // Start position (centered)
+        let xPos = -totalWidth / 2;
+
+        // Draw each character
+        for (let i = 0; i < chars.length; i++) {
+          const charWidth = ctx.measureText(chars[i]).width;
+          ctx.fillText(chars[i], xPos + charWidth / 2, 0);
+          xPos += charWidth + textOverlay.spacing;
+        }
+      } else {
+        // Draw text normally if no spacing
+        ctx.fillText(textOverlay.text, 0, 0);
+      }
+
+      // Restore the context to draw the rectangle in the correct position
+      ctx.restore();
+
+      // Draw selection rectangle and controls separately (after text is drawn)
       const textRect = calculateTextRect(canvas);
       if (textRect) {
         if (isDraggingText || textOverlay.isSelected) {
@@ -774,14 +872,45 @@ const ImageRender = () => {
             );
 
             if (distToDeleteButton <= deleteButtonRadius) {
-              // Delete the text
               console.log("Deleting text");
               deleteText();
               return;
             }
+
+            // Check for corner handles when text is selected
+            const handleSize = 6;
+            const corners = [
+              { x: textRect.x, y: textRect.y, corner: "topLeft" },
+              {
+                x: textRect.x + textRect.width,
+                y: textRect.y,
+                corner: "topRight",
+              },
+              {
+                x: textRect.x,
+                y: textRect.y + textRect.height,
+                corner: "bottomLeft",
+              },
+              {
+                x: textRect.x + textRect.width,
+                y: textRect.y + textRect.height,
+                corner: "bottomRight",
+              },
+            ];
+
+            for (const corner of corners) {
+              if (
+                isCornerHandle(mouseX, mouseY, corner.x, corner.y, handleSize)
+              ) {
+                setIsResizingCorner(true);
+                setResizeCorner(corner.corner as any);
+                setResizeStartPoint({ x: mouseX, y: mouseY });
+                return; // Exit early
+              }
+            }
           }
 
-          // Check if click is inside text
+          // Check if click is inside text (unchanged from before)
           if (
             mouseX >= textRect.x &&
             mouseX <= textRect.x + textRect.width &&
@@ -794,8 +923,12 @@ const ImageRender = () => {
             setIsDraggingText(true);
 
             // Calculate drag offset for text
-            const textCenterX = (canvas.width * textPosition.x) / 100;
-            const textCenterY = (canvas.height * textPosition.y) / 100;
+            const textCenterX =
+              (canvas.width * textPosition.x) / 100 +
+              (textOverlay.translationX || 0);
+            const textCenterY =
+              (canvas.height * textPosition.y) / 100 +
+              (textOverlay.translationY || 0);
 
             const newOffset = {
               x: mouseX - textCenterX,
@@ -1110,6 +1243,81 @@ const ImageRender = () => {
           }
         }
       }
+
+      // Update the mouse move handler to implement resizing by corner
+      const handleResizeByCorner = (
+        currentMouseX: number,
+        currentMouseY: number
+      ) => {
+        if (!isResizingCorner || !resizeCorner) return;
+
+        if (draggedLogoId) {
+          const logo = logos.find((l) => l.id === draggedLogoId);
+          if (!logo) return;
+
+          const logoRect = logoRects.get(draggedLogoId);
+          if (!logoRect) return;
+
+          // Get logo center
+          const centerX = (canvas.width * logo.position.x) / 100;
+          const centerY = (canvas.height * logo.position.y) / 100;
+
+          // Calculate distance from center to current mouse position
+          const distX = Math.abs(currentMouseX - centerX);
+          const distY = Math.abs(currentMouseY - centerY);
+
+          // Use the max distance to determine the new size (keeping aspect ratio)
+          const maxDist = Math.max(distX, distY);
+
+          // Convert to percentage of canvas
+          const newSize = ((maxDist * 2) / canvas.width) * 100;
+
+          // Update logo size with constraints
+          updateLogo(draggedLogoId, {
+            size: Math.max(5, Math.min(100, newSize)),
+          });
+        } else if (textOverlay.isSelected) {
+          // Calculate new font size based on corner drag
+          const textRect = calculateTextRect(canvas);
+          if (!textRect) return;
+
+          // Use the width of the rect to determine font size
+          let newWidth = 0;
+          switch (resizeCorner) {
+            case "bottomRight":
+            case "topRight":
+              newWidth = currentMouseX - textRect.x;
+              break;
+            case "bottomLeft":
+            case "topLeft":
+              newWidth = textRect.x + textRect.width - currentMouseX;
+              break;
+          }
+
+          // Calculate font size proportionally but make sure we keep text visible
+          if (newWidth > 20) {
+            // Enforce minimum width for visibility
+            // Adjust scaling factor for better feel
+            const baseWidth = textRect.width - textOverlay.fontSize * 0.6; // Remove padding from calculation
+            const scaleFactor = textOverlay.fontSize / baseWidth;
+            const newFontSize = Math.max(
+              8,
+              Math.min(120, (newWidth - 20) * scaleFactor)
+            );
+
+            // Update text font size - use an object with the full text properties
+            setTextOverlay({
+              ...textOverlay, // Keep existing properties
+              fontSize: Math.round(newFontSize),
+            });
+          }
+        }
+      };
+
+      // Call this function in the mousemove handler
+      if (isResizingCorner) {
+        handleResizeByCorner(currentMouseX, currentMouseY);
+      }
     },
     [
       canvasRef,
@@ -1128,15 +1336,21 @@ const ImageRender = () => {
       textDragOffset,
       textPosition,
       renderCanvas,
+      isResizingCorner,
+      resizeCorner,
+      setIsResizingCorner,
+      setResizeCorner,
     ]
   );
 
   // Handle mouse up event
   const handleMouseUp = useCallback(() => {
-    if (isDragging || isResizing) {
-      console.log("Stopped dragging/resizing logo");
+    if (isDragging || isResizing || isResizingCorner) {
+      console.log("Stopped dragging/resizing");
       setIsDragging(false);
       setIsResizing(false);
+      setIsResizingCorner(false);
+      setResizeCorner(null);
       setDraggedLogoId(null);
     }
 
@@ -1144,7 +1358,7 @@ const ImageRender = () => {
       console.log("Stopped dragging text");
       setIsDraggingText(false);
     }
-  }, [isDragging, isResizing, isDraggingText]);
+  }, [isDragging, isResizing, isDraggingText, isResizingCorner]);
 
   // Add event listeners
   useEffect(() => {
@@ -1360,6 +1574,39 @@ const ImageRender = () => {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+
+  // When setting text, ensure we set it to center initially
+  useEffect(() => {
+    // Reset text position to center when text becomes visible but wasn't before
+    if (
+      textOverlay.isVisible &&
+      textOverlay.text &&
+      !prevTextVisibleRef.current
+    ) {
+      setTextPosition({ x: 50, y: 50 });
+    }
+    prevTextVisibleRef.current =
+      textOverlay.isVisible && Boolean(textOverlay.text);
+  }, [textOverlay.isVisible, textOverlay.text]);
+
+  // Add this ref to track previous state
+  const prevTextVisibleRef = useRef(false);
+
+  // Update the handleMouseDown function to handle corner detection for text correctly
+  const isCornerHandle = (
+    x: number,
+    y: number,
+    cornerX: number,
+    cornerY: number,
+    handleSize: number
+  ) => {
+    return (
+      x >= cornerX - handleSize / 2 &&
+      x <= cornerX + handleSize / 2 &&
+      y >= cornerY - handleSize / 2 &&
+      y <= cornerY + handleSize / 2
+    );
+  };
 
   return (
     <ImageRenderContext.Provider value={contextValue}>

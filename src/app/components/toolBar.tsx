@@ -15,6 +15,7 @@ import TypographyDesigns from "./Toolbar components/typographyDesigns";
 import ImageUploader from "./Toolbar components/imageUploader";
 import AspectRatioControls from "./Toolbar components/aspectRatioControls";
 import PresetBuilder from "./Toolbar components/presetBuilder";
+import SelectionControls from "./Toolbar components/selectionControls";
 
 const ToolBar = () => {
   const {
@@ -33,6 +34,11 @@ const ToolBar = () => {
     spacing,
     setSpacing,
     aspectRatio,
+    textOverlay,
+    setTextRotation,
+    setTextSpacing,
+    setTextTranslationX,
+    setTextTranslationY,
   } = useDesignStore();
 
   return (
@@ -76,27 +82,12 @@ const ToolBar = () => {
 
         <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
-        <PositionControls
-          translationX={translationX}
-          setTranslationX={setTranslationX}
-          translationY={translationY}
-          setTranslationY={setTranslationY}
-        />
-
-        <SizeControls
-          minSize={minSize}
-          setMinSize={setMinSize}
-          maxSize={maxSize}
-          setMaxSize={setMaxSize}
-          spacing={spacing}
-          setSpacing={setSpacing}
-          rotation={rotation}
-          setRotation={setRotation}
-        />
-
+        <SelectionControls />
         <hr className="h-px my-4 border-0 bg-neutral-200 lg:bg-neutral-300 dark:bg-neutral-900 lg:dark:bg-neutral-800" />
 
         <ExportControls />
+
+        {/* Always show selection controls if something is selected */}
       </div>
 
       {/* Footer is outside the scrollable area - always visible at bottom */}
