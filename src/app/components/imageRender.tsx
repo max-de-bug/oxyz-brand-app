@@ -57,6 +57,10 @@ const ImageRender = () => {
   >(null);
   const [resizeStartPoint, setResizeStartPoint] = useState({ x: 0, y: 0 });
 
+  // Add state variables for viewport dimensions at the beginning of the component
+  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
+  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+
   // Get values from the store
   const {
     imageUrl,
@@ -86,20 +90,21 @@ const ImageRender = () => {
     console.log("Current opacity value:", opacity);
   }, [opacity]);
 
-  // Adjust canvas size based on viewport width and image dimensions
+  // Add an effect to adjust canvas size based on the main image's dimensions
   useEffect(() => {
-    const updateCanvasSize = () => {
+    if (
+      mainImage &&
+      mainImage.naturalWidth > 0 &&
+      mainImage.naturalHeight > 0
+    ) {
+      // Calculate the aspect ratio of the loaded image
+      const imageAspectRatio = mainImage.naturalWidth / mainImage.naturalHeight;
+
       // Calculate available width (accounting for toolbar and padding)
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
 
-      // Parse aspect ratio
-      const [widthRatio, heightRatio] = designStoreAspectRatio
-        .split(":")
-        .map(Number);
-      const ratio = widthRatio / heightRatio;
-
-      // Determine base width with larger sizes
+      // Determine base width with responsive sizes
       let baseWidth;
       if (viewportWidth >= 1280) {
         // xl breakpoint
@@ -114,25 +119,39 @@ const ImageRender = () => {
         baseWidth = Math.min(700, viewportWidth * 0.85);
       }
 
-      // Calculate height based on ratio while ensuring it fits in viewport
-      const calculatedHeight = baseWidth / ratio;
+      // Calculate height based on image's aspect ratio
+      const calculatedHeight = baseWidth / imageAspectRatio;
       const maxHeight = viewportHeight * 0.8; // Maximum 80% of viewport height
 
       // Adjust width if height exceeds maximum
       if (calculatedHeight > maxHeight) {
-        baseWidth = maxHeight * ratio;
+        baseWidth = maxHeight * imageAspectRatio;
       }
 
+      // Update canvas size
       setCanvasWidth(baseWidth);
-    };
 
-    // Initial size calculation
-    updateCanvasSize();
+      // Update design store aspect ratio to match the image
+      const gcd = (a: number, b: number): number => (b ? gcd(b, a % b) : a);
+      const aspectGcd = gcd(mainImage.naturalWidth, mainImage.naturalHeight);
+      const widthRatio = mainImage.naturalWidth / aspectGcd;
+      const heightRatio = mainImage.naturalHeight / aspectGcd;
 
-    // Update on resize
-    window.addEventListener("resize", updateCanvasSize);
-    return () => window.removeEventListener("resize", updateCanvasSize);
-  }, [designStoreAspectRatio]);
+      // Only update if the ratio is significantly different (avoid minor decimal differences)
+      const currentRatio = designStoreAspectRatio.split(":").map(Number);
+      const currentCalculatedRatio = currentRatio[0] / currentRatio[1];
+      const newCalculatedRatio = widthRatio / heightRatio;
+
+      if (Math.abs(currentCalculatedRatio - newCalculatedRatio) > 0.01) {
+        console.log(
+          `Setting aspect ratio to match image: ${widthRatio}:${heightRatio}`
+        );
+        useDesignStore
+          .getState()
+          .setAspectRatio(`${widthRatio}:${heightRatio}`);
+      }
+    }
+  }, [mainImage, viewportWidth, viewportHeight]);
 
   // Memoize the calculateLogoRects function to prevent unnecessary recalculations
   const calculateLogoRects = useCallback(
@@ -335,19 +354,35 @@ const ImageRender = () => {
     if (!canvasRef.current) return;
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d", { alpha: false }); // Use non-alpha for better performance
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    // Parse aspect ratio once
-    const [widthRatio, heightRatio] = designStoreAspectRatio
-      .split(":")
-      .map(Number);
-    const ratio = widthRatio / heightRatio;
+    // Determine the aspect ratio to use (prefer image's aspect ratio if available)
+    let aspectRatio;
+    if (
+      mainImage &&
+      mainImage.naturalWidth > 0 &&
+      mainImage.naturalHeight > 0
+    ) {
+      aspectRatio = mainImage.naturalWidth / mainImage.naturalHeight;
+    } else {
+      // Fall back to the design store aspect ratio
+      const [widthRatio, heightRatio] = designStoreAspectRatio
+        .split(":")
+        .map(Number);
+      aspectRatio = widthRatio / heightRatio;
+    }
 
     // Ensure canvas has proper dimensions before drawing
-    if (canvas.width !== canvasWidth || canvas.height !== canvasWidth / ratio) {
+    if (
+      canvas.width !== canvasWidth ||
+      Math.abs(canvas.height - canvasWidth / aspectRatio) > 1
+    ) {
       canvas.width = canvasWidth;
-      canvas.height = canvasWidth / ratio;
+      canvas.height = canvasWidth / aspectRatio;
+      console.log(
+        `Canvas resized to ${canvas.width}x${canvas.height}, aspect ratio: ${aspectRatio}`
+      );
     }
 
     // Clear canvas with solid color for performance
@@ -370,7 +405,7 @@ const ImageRender = () => {
         offsetX = 0,
         offsetY = 0;
 
-      if (imageRatio > ratio) {
+      if (imageRatio > aspectRatio) {
         // Image is wider than canvas ratio
         drawWidth = canvas.width;
         drawHeight = canvas.width / imageRatio;
@@ -1608,11 +1643,26 @@ const ImageRender = () => {
     );
   };
 
+  // Add an effect to track viewport dimensions
+  useEffect(() => {
+    const handleResize = () => {
+      setViewportWidth(window.innerWidth);
+      setViewportHeight(window.innerHeight);
+    };
+
+    // Set initial dimensions
+    handleResize();
+
+    // Update on resize
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <ImageRenderContext.Provider value={contextValue}>
       <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
         <div
-          className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
+          className="fixed bg-white dark-bg-neutral-900 rounded-lg shadow-md z-10"
           style={{
             left: "calc(50% - 192px)",
             top: "43%",
@@ -1632,13 +1682,13 @@ const ImageRender = () => {
             margin: "20px auto",
           }}
         >
-          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
+          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark-text-white">
             Canvas
           </h2>
 
           {imageUrl && (
             <button
-              className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
+              className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover-opacity-100 z-10"
               onClick={handleDeleteMainImage}
               title="Remove image from canvas"
             >
@@ -1669,7 +1719,7 @@ const ImageRender = () => {
             {logos.length > 0 && (
               <button
                 onClick={() => selectLogo(null)}
-                className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
+                className="p-2 bg-white rounded-full shadow-md hover-bg-gray-100"
                 title="Deselect all logos"
               >
                 <svg
