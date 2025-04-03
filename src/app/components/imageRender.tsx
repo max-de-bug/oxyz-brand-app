@@ -77,7 +77,7 @@ const ImageRender = () => {
   // Inside the ImageRender component, add this right after your other state declarations
   const { aspectRatio: designStoreAspectRatio } = useDesignStore();
 
-  // Add an effect to adjust canvas size based on the main image's dimensions
+  // Add or update this effect for handling aspect ratio when image loads
   useEffect(() => {
     if (
       mainImage &&
@@ -138,7 +138,58 @@ const ImageRender = () => {
           .setAspectRatio(`${widthRatio}:${heightRatio}`);
       }
     }
-  }, [mainImage, viewportWidth, viewportHeight]);
+  }, [mainImage, designStoreAspectRatio]);
+
+  // Add resize listener to handle window resizing
+  useEffect(() => {
+    const handleResize = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+
+      // Determine base width with responsive sizes
+      let baseWidth;
+      if (viewportWidth >= 1280) {
+        // xl breakpoint
+        baseWidth = Math.min(1200, viewportWidth * 0.6);
+      } else if (viewportWidth >= 1024) {
+        // lg breakpoint
+        baseWidth = Math.min(1000, viewportWidth * 0.65);
+      } else if (viewportWidth >= 768) {
+        // md breakpoint
+        baseWidth = Math.min(800, viewportWidth * 0.75);
+      } else {
+        baseWidth = Math.min(700, viewportWidth * 0.85);
+      }
+
+      // Get the current aspect ratio from the design store
+      const [widthRatio, heightRatio] = designStoreAspectRatio
+        .split(":")
+        .map(Number);
+      const aspectRatio = widthRatio / heightRatio;
+
+      // Calculate height based on aspect ratio
+      const calculatedHeight = baseWidth / aspectRatio;
+      const maxHeight = viewportHeight * 0.8; // Maximum 80% of viewport height
+
+      // Adjust width if height exceeds maximum
+      if (calculatedHeight > maxHeight) {
+        baseWidth = maxHeight * aspectRatio;
+      }
+
+      // Update canvas size
+      setCanvasWidth(baseWidth);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    // Call once to initialize
+    handleResize();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, [designStoreAspectRatio]);
+
   const calculateImageBounds = useCallback(() => {
     if (!canvasRef.current || !mainImage)
       return { left: 0, top: 0, right: 100, bottom: 100 };
@@ -1778,17 +1829,12 @@ const ImageRender = () => {
   return (
     <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
       <div
-        className="fixed bg-white dark-bg-neutral-900 rounded-lg shadow-md z-10"
+        className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
         style={{
           left: "calc(50% - 192px)",
           top: "43%",
           transform: "translate(-50%, -50%)",
           height: "auto",
-          minHeight: `${
-            canvasWidth /
-            (designStoreAspectRatio.split(":").map(Number)[0] /
-              designStoreAspectRatio.split(":").map(Number)[1])
-          }px`,
           width: `${canvasWidth}px`,
           display: "flex",
           flexDirection: "column",
@@ -1798,13 +1844,13 @@ const ImageRender = () => {
           margin: "20px auto",
         }}
       >
-        <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark-text-white">
+        <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
           Canvas
         </h2>
 
         {imageUrl && (
           <button
-            className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover-opacity-100 z-10"
+            className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover:opacity-100 z-10"
             onClick={handleDeleteMainImage}
             title="Remove image from canvas"
           >
@@ -1835,7 +1881,7 @@ const ImageRender = () => {
           {logos.length > 0 && (
             <button
               onClick={() => selectLogo(null)}
-              className="p-2 bg-white rounded-full shadow-md hover-bg-gray-100"
+              className="p-2 bg-white rounded-full shadow-md hover:bg-gray-100"
               title="Deselect all logos"
             >
               <svg
@@ -1870,14 +1916,14 @@ const ImageRender = () => {
         )}
       </div>
 
-      {/* Spacer with dynamic height */}
+      {/* Dynamic spacer that adjusts based on the aspect ratio */}
       <div
         style={{
           height: `${
             canvasWidth /
               (designStoreAspectRatio.split(":").map(Number)[0] /
                 designStoreAspectRatio.split(":").map(Number)[1]) +
-            100
+            150 // Add extra space for controls and headers
           }px`,
           width: `${canvasWidth}px`,
           margin: "0 auto",
