@@ -1,27 +1,9 @@
 "use client";
 
-import React, {
-  useRef,
-  useEffect,
-  createContext,
-  useContext,
-  useState,
-  useCallback,
-} from "react";
-import { useImageStore, CanvasLogo } from "@/app/store/imageStore";
-import { useDesignStore } from "@/app/store/designStore";
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import { useImageStore } from "@/app/store/imageStore";
+import { TextOverlay, useDesignStore } from "@/app/store/designStore";
 import { Trash2 } from "lucide-react";
-import { usePresetStore } from "../store/presetStore";
-
-interface ImageRenderContextType {
-  captureCanvas: () => Promise<string | null>;
-}
-
-const ImageRenderContext = createContext<ImageRenderContextType>({
-  captureCanvas: async () => null,
-});
-
-export const useImageRender = () => useContext(ImageRenderContext);
 
 const ImageRender = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,6 +43,9 @@ const ImageRender = () => {
   const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
   const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
 
+  // Add state for tracking the dragged text ID
+  const [draggedTextId, setDraggedTextId] = useState<string | null>(null);
+
   // Get values from the store
   const {
     imageUrl,
@@ -77,18 +62,20 @@ const ImageRender = () => {
   } = useImageStore();
 
   // Get text overlay and aspect ratio from design store
-  const { textOverlay, setTextOverlay, selectText, deleteText, aspectRatio } =
-    useDesignStore();
-
-  const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
+  const {
+    textOverlay,
+    setTextOverlay,
+    selectText,
+    deleteText,
+    // Add new multi-text related state and functions
+    textOverlays,
+    updateText,
+    deleteTextById,
+    selectTextById,
+  } = useDesignStore();
 
   // Inside the ImageRender component, add this right after your other state declarations
   const { aspectRatio: designStoreAspectRatio } = useDesignStore();
-
-  // Add this debug useEffect to track opacity changes
-  useEffect(() => {
-    console.log("Current opacity value:", opacity);
-  }, [opacity]);
 
   // Add an effect to adjust canvas size based on the main image's dimensions
   useEffect(() => {
@@ -152,6 +139,51 @@ const ImageRender = () => {
       }
     }
   }, [mainImage, viewportWidth, viewportHeight]);
+  const calculateImageBounds = useCallback(() => {
+    if (!canvasRef.current || !mainImage)
+      return { left: 0, top: 0, right: 100, bottom: 100 };
+
+    const canvas = canvasRef.current;
+    const imageRatio = mainImage.width / mainImage.height;
+    const canvasRatio = canvas.width / canvas.height;
+
+    // Calculate the actual image boundaries within the canvas (in percentage)
+    let imageBounds = { left: 0, top: 0, right: 100, bottom: 100 };
+
+    if (imageRatio > canvasRatio) {
+      // Image is wider than canvas ratio (has vertical margins)
+      const drawHeight = canvas.width / imageRatio;
+      const verticalMargin = (canvas.height - drawHeight) / 2;
+
+      // Convert to percentage for consistency
+      const topMarginPercent = (verticalMargin / canvas.height) * 100;
+      const bottomMarginPercent = 100 - topMarginPercent;
+
+      imageBounds = {
+        left: 0,
+        top: topMarginPercent,
+        right: 100,
+        bottom: bottomMarginPercent,
+      };
+    } else {
+      // Image is taller than canvas ratio (has horizontal margins)
+      const drawWidth = canvas.height * imageRatio;
+      const horizontalMargin = (canvas.width - drawWidth) / 2;
+
+      // Convert to percentage for consistency
+      const leftMarginPercent = (horizontalMargin / canvas.width) * 100;
+      const rightMarginPercent = 100 - leftMarginPercent;
+
+      imageBounds = {
+        left: leftMarginPercent,
+        top: 0,
+        right: rightMarginPercent,
+        bottom: 100,
+      };
+    }
+
+    return imageBounds;
+  }, [canvasRef, mainImage]);
 
   // Memoize the calculateLogoRects function to prevent unnecessary recalculations
   const calculateLogoRects = useCallback(
@@ -185,13 +217,13 @@ const ImageRender = () => {
     [logos, logoImages]
   );
 
-  // Calculate text rectangle for hit testing
+  // Update calculateTextRect to accept a specific text overlay
   const calculateTextRect = useCallback(
     (
-      canvas: HTMLCanvasElement
+      canvas: HTMLCanvasElement,
+      currentText = textOverlay // Default to legacy textOverlay if not specified
     ): { x: number; y: number; width: number; height: number } | null => {
-      if (!textOverlay.isVisible || !textOverlay.text) {
-        console.log("Text not visible or empty");
+      if (!currentText.isVisible || !currentText.text) {
         return null;
       }
 
@@ -202,34 +234,35 @@ const ImageRender = () => {
       }
 
       // Set font properties
-      const fontStyle = textOverlay.isItalic ? "italic " : "";
-      const fontWeight = textOverlay.isBold ? "bold " : "";
-      const fontFamilyName = textOverlay.fontFamily.includes("-")
-        ? `"${textOverlay.fontFamily}"`
-        : textOverlay.fontFamily;
+      const fontStyle = currentText.isItalic ? "italic " : "";
+      const fontWeight = currentText.isBold ? "bold " : "";
+      const fontFamilyName = currentText.fontFamily.includes("-")
+        ? `"${currentText.fontFamily}"`
+        : currentText.fontFamily;
 
-      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px ${fontFamilyName}, sans-serif`;
+      ctx.font = `${fontStyle}${fontWeight}${currentText.fontSize}px ${fontFamilyName}, sans-serif`;
 
       // Measure text
-      const metrics = ctx.measureText(textOverlay.text);
+      const metrics = ctx.measureText(currentText.text);
 
       // Get proper text metrics with padding for better visibility and clickability
-      const padding = Math.max(10, textOverlay.fontSize * 0.3); // Dynamic padding based on font size
+      const padding = Math.max(10, currentText.fontSize * 0.3); // Dynamic padding based on font size
 
       // Calculate more accurate height (use actualBoundingBoxAscent if available)
       const textHeight =
         metrics.actualBoundingBoxAscent !== undefined
           ? metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent
-          : textOverlay.fontSize * 1.2; // Fallback with multiplier for better height
+          : currentText.fontSize * 1.2; // Fallback with multiplier for better height
 
       const textWidth = metrics.width;
 
       // Calculate position (centered around the text position)
       const textX =
-        (canvas.width * textPosition.x) / 100 + (textOverlay.translationX || 0);
+        (canvas.width * currentText.position.x) / 100 +
+        (currentText.translationX || 0);
       const textY =
-        (canvas.height * textPosition.y) / 100 +
-        (textOverlay.translationY || 0);
+        (canvas.height * currentText.position.y) / 100 +
+        (currentText.translationY || 0);
 
       // Create a rect without rotation applied, adding padding for easier selection
       let rect = {
@@ -240,7 +273,7 @@ const ImageRender = () => {
       };
 
       // If there's rotation, we need to adjust the bounding box
-      if (textOverlay.rotation && textOverlay.rotation !== 0) {
+      if (currentText.rotation && currentText.rotation !== 0) {
         // For rotated text, create a larger bounding box
         const diagonal = Math.sqrt(
           Math.pow(rect.width, 2) + Math.pow(rect.height, 2)
@@ -255,7 +288,7 @@ const ImageRender = () => {
 
       return rect;
     },
-    [textOverlay, textPosition]
+    [textOverlay]
   );
 
   // Load main image when imageUrl changes
@@ -350,6 +383,7 @@ const ImageRender = () => {
     }
   }, [logos]);
 
+  // Update renderCanvas to handle multiple text overlays
   const renderCanvas = useCallback(() => {
     if (!canvasRef.current) return;
 
@@ -514,144 +548,17 @@ const ImageRender = () => {
       }
     });
 
-    // Draw text overlay if visible and has text
+    // Draw text overlays - first draw the legacy text for backward compatibility
     if (textOverlay.isVisible && textOverlay.text.trim() !== "") {
-      // Save current context state
-      ctx.save();
-
-      // Calculate text position, applying translationX and translationY offsets
-      const textX =
-        (canvas.width * textPosition.x) / 100 + textOverlay.translationX;
-      const textY =
-        (canvas.height * textPosition.y) / 100 + textOverlay.translationY;
-
-      // Translate to the text position for rotation
-      ctx.translate(textX, textY);
-
-      // Apply rotation (convert degrees to radians)
-      ctx.rotate((textOverlay.rotation * Math.PI) / 180);
-
-      // Set text properties
-      const fontStyle = textOverlay.isItalic ? "italic " : "";
-      const fontWeight = textOverlay.isBold ? "bold " : "";
-      const fontFamilyName = textOverlay.fontFamily.includes("-")
-        ? `"${textOverlay.fontFamily}"`
-        : textOverlay.fontFamily;
-
-      ctx.font = `${fontStyle}${fontWeight}${textOverlay.fontSize}px ${fontFamilyName}, sans-serif`;
-      ctx.fillStyle = textOverlay.color;
-      ctx.textBaseline = "middle";
-      ctx.textAlign = "center";
-
-      // Apply letter spacing if needed
-      if (textOverlay.spacing !== 0) {
-        // Draw each character separately with spacing
-        const chars = textOverlay.text.split("");
-        let totalWidth = 0;
-
-        // First calculate total width with spacing
-        for (let i = 0; i < chars.length; i++) {
-          const charWidth = ctx.measureText(chars[i]).width;
-          totalWidth +=
-            charWidth + (i < chars.length - 1 ? textOverlay.spacing : 0);
-        }
-
-        // Start position (centered)
-        let xPos = -totalWidth / 2;
-
-        // Draw each character
-        for (let i = 0; i < chars.length; i++) {
-          const charWidth = ctx.measureText(chars[i]).width;
-          ctx.fillText(chars[i], xPos + charWidth / 2, 0);
-          xPos += charWidth + textOverlay.spacing;
-        }
-      } else {
-        // Draw text normally if no spacing
-        ctx.fillText(textOverlay.text, 0, 0);
-      }
-
-      // Restore the context to draw the rectangle in the correct position
-      ctx.restore();
-
-      // Draw selection rectangle and controls separately (after text is drawn)
-      const textRect = calculateTextRect(canvas);
-      if (textRect) {
-        if (isDraggingText || textOverlay.isSelected) {
-          // Draw a more prominent bounding box when dragging or selected
-          ctx.strokeStyle = "#3b82f6"; // Blue
-          ctx.lineWidth = 2;
-          ctx.setLineDash([]);
-          ctx.strokeRect(
-            textRect.x,
-            textRect.y,
-            textRect.width,
-            textRect.height
-          );
-
-          // Draw control points
-          ctx.fillStyle = "#3b82f6";
-          const handleSize = 6;
-
-          // Draw handles at corners
-          [
-            { x: textRect.x, y: textRect.y }, // Top-left
-            { x: textRect.x + textRect.width, y: textRect.y }, // Top-right
-            { x: textRect.x, y: textRect.y + textRect.height }, // Bottom-left
-            { x: textRect.x + textRect.width, y: textRect.y + textRect.height }, // Bottom-right
-          ].forEach((point) => {
-            ctx.fillRect(
-              point.x - handleSize / 2,
-              point.y - handleSize / 2,
-              handleSize,
-              handleSize
-            );
-          });
-
-          // Draw delete button when selected (not dragging)
-          if (textOverlay.isSelected && !isDraggingText) {
-            // Draw delete button at top right
-            ctx.fillStyle = "#ef4444"; // Red
-            ctx.beginPath();
-            ctx.arc(
-              textRect.x + textRect.width,
-              textRect.y,
-              10,
-              0,
-              Math.PI * 2
-            );
-            ctx.fill();
-
-            // Draw X in delete button
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
-            ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
-            ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
-            ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
-            ctx.stroke();
-          }
-        } else if (
-          mouseX >= textRect.x &&
-          mouseX <= textRect.x + textRect.width &&
-          mouseY >= textRect.y &&
-          mouseY <= textRect.y + textRect.height
-        ) {
-          // Draw a subtle bounding box when hovering
-          ctx.strokeStyle = "#9ca3af"; // Gray
-          ctx.lineWidth = 1;
-          ctx.setLineDash([5, 5]);
-          ctx.strokeRect(
-            textRect.x,
-            textRect.y,
-            textRect.width,
-            textRect.height
-          );
-          ctx.setLineDash([]);
-        }
-      }
+      drawTextOverlay(ctx, canvas, textOverlay);
     }
+
+    // Draw all text overlays from the new array
+    textOverlays.forEach((text) => {
+      if (text.isVisible && text.text.trim() !== "") {
+        drawTextOverlay(ctx, canvas, text);
+      }
+    });
   }, [
     mainImage,
     logoImages,
@@ -665,6 +572,7 @@ const ImageRender = () => {
     calculateLogoRects,
     canvasWidth,
     textOverlay,
+    textOverlays,
     textPosition,
     isDraggingText,
     calculateTextRect,
@@ -672,6 +580,137 @@ const ImageRender = () => {
     mouseY,
     designStoreAspectRatio,
   ]);
+
+  // Helper function to draw a text overlay
+  const drawTextOverlay = (
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    text: TextOverlay
+  ) => {
+    // Save current context state
+    ctx.save();
+
+    // Calculate text position, applying translationX and translationY offsets
+    const textX =
+      (canvas.width * text.position.x) / 100 + (text.translationX || 0);
+    const textY =
+      (canvas.height * text.position.y) / 100 + (text.translationY || 0);
+
+    // Translate to the text position for rotation
+    ctx.translate(textX, textY);
+
+    // Apply rotation (convert degrees to radians)
+    ctx.rotate((text.rotation * Math.PI) / 180);
+
+    // Set text properties
+    const fontStyle = text.isItalic ? "italic " : "";
+    const fontWeight = text.isBold ? "bold " : "";
+    const fontFamilyName = text.fontFamily.includes("-")
+      ? `"${text.fontFamily}"`
+      : text.fontFamily;
+
+    ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${fontFamilyName}, sans-serif`;
+    ctx.fillStyle = text.color;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+
+    // Apply letter spacing if needed
+    if (text.spacing !== 0) {
+      // Draw each character separately with spacing
+      const chars = text.text.split("");
+      let totalWidth = 0;
+
+      // First calculate total width with spacing
+      for (let i = 0; i < chars.length; i++) {
+        const charWidth = ctx.measureText(chars[i]).width;
+        totalWidth += charWidth + (i < chars.length - 1 ? text.spacing : 0);
+      }
+
+      // Start position (centered)
+      let xPos = -totalWidth / 2;
+
+      // Draw each character
+      for (let i = 0; i < chars.length; i++) {
+        const charWidth = ctx.measureText(chars[i]).width;
+        ctx.fillText(chars[i], xPos + charWidth / 2, 0);
+        xPos += charWidth + text.spacing;
+      }
+    } else {
+      // Draw text normally if no spacing
+      ctx.fillText(text.text, 0, 0);
+    }
+
+    // Restore the context to draw the rectangle in the correct position
+    ctx.restore();
+
+    // Draw selection rectangle and controls separately (after text is drawn)
+    const textRect = calculateTextRect(canvas, text);
+    if (textRect) {
+      const isDraggingThisText =
+        isDraggingText &&
+        (text.id === draggedTextId ||
+          (draggedTextId === null && text === textOverlay));
+
+      if (isDraggingThisText || text.isSelected) {
+        // Draw a more prominent bounding box when dragging or selected
+        ctx.strokeStyle = "#3b82f6"; // Blue
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        ctx.strokeRect(textRect.x, textRect.y, textRect.width, textRect.height);
+
+        // Draw control points
+        ctx.fillStyle = "#3b82f6";
+        const handleSize = 6;
+
+        // Draw handles at corners
+        [
+          { x: textRect.x, y: textRect.y }, // Top-left
+          { x: textRect.x + textRect.width, y: textRect.y }, // Top-right
+          { x: textRect.x, y: textRect.y + textRect.height }, // Bottom-left
+          { x: textRect.x + textRect.width, y: textRect.y + textRect.height }, // Bottom-right
+        ].forEach((point) => {
+          ctx.fillRect(
+            point.x - handleSize / 2,
+            point.y - handleSize / 2,
+            handleSize,
+            handleSize
+          );
+        });
+
+        // Draw delete button when selected (not dragging)
+        if (text.isSelected && !isDraggingThisText) {
+          // Draw delete button at top right
+          ctx.fillStyle = "#ef4444"; // Red
+          ctx.beginPath();
+          ctx.arc(textRect.x + textRect.width, textRect.y, 10, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Draw X in delete button
+          ctx.strokeStyle = "#ffffff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
+          ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
+          ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
+          ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
+          ctx.stroke();
+        }
+      } else if (
+        mouseX >= textRect.x &&
+        mouseX <= textRect.x + textRect.width &&
+        mouseY >= textRect.y &&
+        mouseY <= textRect.y + textRect.height
+      ) {
+        // Draw a subtle bounding box when hovering
+        ctx.strokeStyle = "#9ca3af"; // Gray
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.strokeRect(textRect.x, textRect.y, textRect.width, textRect.height);
+        ctx.setLineDash([]);
+      }
+    }
+  };
 
   // Replace the debounced renderCanvas with a more efficient approach
   useEffect(() => {
@@ -693,155 +732,8 @@ const ImageRender = () => {
   }, [renderCanvas]);
 
   // Force a complete render of the canvas
-  const forceRender = useCallback(() => {
-    console.log("Forcing complete canvas render");
-
-    if (!canvasRef.current) {
-      console.error("Canvas reference is not available for force render");
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("Could not get canvas context for force render");
-      return;
-    }
-
-    // Ensure canvas has dimensions
-    if (canvas.width === 0 || canvas.height === 0) {
-      console.log("Canvas has zero dimensions, setting default dimensions");
-      canvas.width = canvasWidth;
-      canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
-    }
-
-    // Clear the canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Perform the render
-    renderCanvas();
-
-    console.log("Force render complete");
-  }, [renderCanvas, canvasWidth]);
-
-  const ensureCanvasRendered = useCallback(() => {
-    return new Promise<void>((resolve) => {
-      if (!canvasRef.current) {
-        console.error("Canvas reference is not available for rendering");
-        resolve();
-        return;
-      }
-
-      console.log("Ensuring canvas is rendered before capture...");
-
-      // Force a complete render
-      forceRender();
-
-      // Give the browser a moment to actually render the canvas
-      setTimeout(() => {
-        console.log("Canvas render wait complete");
-        resolve();
-      }, 300); // Increased timeout for better reliability
-    });
-  }, [forceRender]);
 
   // Add a function to prepare the canvas for export
-  const prepareCanvasForExport = useCallback(async (): Promise<boolean> => {
-    console.log("Preparing canvas for export...");
-
-    if (!canvasRef.current) {
-      console.error("Canvas reference not available for export preparation");
-      return false;
-    }
-
-    try {
-      // Force a complete render
-      forceRender();
-
-      // Wait for the render to complete
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      // Ensure the canvas has proper dimensions
-      const canvas = canvasRef.current;
-
-      if (mainImage) {
-        const aspectRatio = mainImage.width / mainImage.height;
-
-        if (canvas.width === 0 || canvas.height === 0) {
-          console.log("Canvas has zero dimensions, setting proper dimensions");
-          canvas.width = canvasWidth;
-          canvas.height =
-            aspectRatio > 1 ? canvasWidth / aspectRatio : canvasWidth * 0.75;
-
-          // Force another render after dimension change
-          renderCanvas();
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      } else {
-        // If no main image, ensure canvas still has proper dimensions
-        if (canvas.width === 0 || canvas.height === 0) {
-          console.log(
-            "Canvas has zero dimensions (no image), setting default dimensions"
-          );
-          canvas.width = canvasWidth;
-          canvas.height = canvasWidth * 0.75; // 4:3 aspect ratio
-
-          // Force another render after dimension change
-          renderCanvas();
-          await new Promise((resolve) => setTimeout(resolve, 200));
-        }
-      }
-
-      console.log("Canvas prepared for export with dimensions:", {
-        width: canvas.width,
-        height: canvas.height,
-      });
-      return true;
-    } catch (error) {
-      console.error("Error preparing canvas for export:", error);
-      return false;
-    }
-  }, [canvasRef, mainImage, canvasWidth, forceRender, renderCanvas]);
-
-  const captureCanvas = useCallback(async (): Promise<string | null> => {
-    console.log("Attempting to capture canvas...");
-
-    if (!canvasRef.current) {
-      console.error("Canvas reference is not available");
-      return null;
-    }
-
-    try {
-      // Prepare the canvas for export
-      const isPrepared = await prepareCanvasForExport();
-      if (!isPrepared) {
-        console.warn("Canvas preparation failed, will try to capture anyway");
-      }
-
-      // Force a synchronous render of the canvas before capture
-      renderCanvas();
-
-      // Wait for the render to complete
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // Simple direct capture approach
-      try {
-        const dataUrl = canvasRef.current.toDataURL("image/png", 1.0);
-        if (dataUrl && dataUrl.startsWith("data:image/png")) {
-          console.log("Successfully captured canvas");
-          return dataUrl;
-        }
-      } catch (err) {
-        console.warn("Canvas capture failed:", err);
-        return null;
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error in canvas capture process:", error);
-      return null;
-    }
-  }, [renderCanvas, prepareCanvasForExport]);
 
   // Re-render canvas when relevant state changes
   useEffect(() => {
@@ -865,6 +757,7 @@ const ImageRender = () => {
     opacity,
     hoveredLogoId,
     textOverlay,
+    textOverlays,
     textPosition,
   ]);
 
@@ -889,14 +782,32 @@ const ImageRender = () => {
         height: canvas.height,
       });
 
-      // Check for text interactions first
-      if (textOverlay.isVisible && textOverlay.text) {
-        const textRect = calculateTextRect(canvas);
-        console.log("Text rect:", textRect);
+      // Create a combined array of all text overlays (including legacy one)
+      const allTextOverlays = [...textOverlays];
 
-        if (textRect) {
+      // Add legacy text overlay if it's visible
+      if (textOverlay.isVisible && textOverlay.text) {
+        allTextOverlays.push(textOverlay);
+      }
+
+      // Process text overlays in reverse order (to handle top elements first)
+      let textHandled = false;
+      for (let i = allTextOverlays.length - 1; i >= 0; i--) {
+        const currentText = allTextOverlays[i];
+        if (!currentText.isVisible || !currentText.text) continue;
+
+        const textRect = calculateTextRect(canvas, currentText);
+        if (!textRect) continue;
+
+        // Check if click is within text bounds
+        if (
+          mouseX >= textRect.x &&
+          mouseX <= textRect.x + textRect.width &&
+          mouseY >= textRect.y &&
+          mouseY <= textRect.y + textRect.height
+        ) {
           // Check if click is on delete button when text is selected
-          if (textOverlay.isSelected) {
+          if (currentText.isSelected) {
             const deleteButtonX = textRect.x + textRect.width;
             const deleteButtonY = textRect.y;
             const deleteButtonRadius = 10;
@@ -907,12 +818,19 @@ const ImageRender = () => {
             );
 
             if (distToDeleteButton <= deleteButtonRadius) {
-              console.log("Deleting text");
-              deleteText();
-              return;
+              // Delete the text
+              if (currentText === textOverlay) {
+                // Handle legacy text
+                deleteText();
+              } else {
+                // Handle text from new array
+                deleteTextById(currentText.id);
+              }
+              textHandled = true;
+              break;
             }
 
-            // Check for corner handles when text is selected
+            // Check for corner handles for resizing
             const handleSize = 6;
             const corners = [
               { x: textRect.x, y: textRect.y, corner: "topLeft" },
@@ -940,54 +858,70 @@ const ImageRender = () => {
                 setIsResizingCorner(true);
                 setResizeCorner(corner.corner as any);
                 setResizeStartPoint({ x: mouseX, y: mouseY });
-                return; // Exit early
+
+                // Set which text is being resized
+                if (currentText !== textOverlay) {
+                  setDraggedTextId(currentText.id);
+                } else {
+                  setDraggedTextId(null); // null indicates legacy text
+                }
+                textHandled = true;
+                break;
               }
             }
+
+            if (textHandled) break;
           }
 
-          // Check if click is inside text (unchanged from before)
-          if (
-            mouseX >= textRect.x &&
-            mouseX <= textRect.x + textRect.width &&
-            mouseY >= textRect.y &&
-            mouseY <= textRect.y + textRect.height
-          ) {
-            // Select the text and start dragging
-            console.log("Selecting text and starting drag");
+          // Select the text and prepare for dragging
+          if (currentText === textOverlay) {
+            // Handle legacy text
             selectText(true);
-            setIsDraggingText(true);
-
-            // Calculate drag offset for text
-            const textCenterX =
-              (canvas.width * textPosition.x) / 100 +
-              (textOverlay.translationX || 0);
-            const textCenterY =
-              (canvas.height * textPosition.y) / 100 +
-              (textOverlay.translationY || 0);
-
-            const newOffset = {
-              x: mouseX - textCenterX,
-              y: mouseY - textCenterY,
-            };
-
-            console.log("Setting text drag offset:", newOffset);
-            setTextDragOffset(newOffset);
-
-            // Deselect any selected logo
-            selectLogo(null);
-
-            // Force a render to ensure the text is highlighted as selected
-            renderCanvas();
-            return;
+            setDraggedTextId(null);
+          } else {
+            // Handle text from new array
+            selectTextById(currentText.id);
+            setDraggedTextId(currentText.id);
           }
+
+          setIsDraggingText(true);
+
+          // Calculate drag offset
+          const textCenterX =
+            (canvas.width * currentText.position.x) / 100 +
+            (currentText.translationX || 0);
+          const textCenterY =
+            (canvas.height * currentText.position.y) / 100 +
+            (currentText.translationY || 0);
+
+          setTextDragOffset({
+            x: mouseX - textCenterX,
+            y: mouseY - textCenterY,
+          });
+
+          // Deselect any selected logo
+          selectLogo(null);
+
+          textHandled = true;
+          break;
         }
       }
 
-      // If clicked outside text, deselect it
-      if (textOverlay.isSelected) {
-        console.log("Deselecting text");
-        selectText(false);
+      if (textHandled) {
+        // Force a render to show the selection
         renderCanvas();
+        return;
+      }
+
+      // If no text was handled, deselect all texts
+      // Deselect legacy text
+      if (textOverlay.isSelected) {
+        selectText(false);
+      }
+
+      // Deselect all texts in the array
+      if (textOverlays.some((t) => t.isSelected)) {
+        selectTextById(null);
       }
 
       // Calculate logo rects
@@ -1096,10 +1030,13 @@ const ImageRender = () => {
       selectLogo,
       deleteLogo,
       textOverlay,
+      textOverlays,
       calculateTextRect,
       selectText,
       deleteText,
-      textPosition,
+      selectTextById,
+      deleteTextById,
+      renderCanvas,
     ]
   );
 
@@ -1120,18 +1057,8 @@ const ImageRender = () => {
       setMouseX(currentMouseX);
       setMouseY(currentMouseY);
 
-      // Log mouse position during dragging for debugging
-      if (isDraggingText) {
-        console.log("Dragging text, mouse position:", {
-          currentMouseX,
-          currentMouseY,
-        });
-        console.log("Canvas dimensions:", {
-          width: canvas.width,
-          height: canvas.height,
-        });
-        console.log("Text drag offset:", textDragOffset);
-      }
+      // Get image boundaries for constraint
+      const imageBounds = calculateImageBounds();
 
       // Update cursor based on what's under it
       canvas.style.cursor = "default";
@@ -1197,7 +1124,7 @@ const ImageRender = () => {
 
       // Check for hover over text
       if (textOverlay.isVisible && textOverlay.text) {
-        const textRect = calculateTextRect(canvas);
+        const textRect = calculateTextRect(canvas, textOverlay);
         if (
           textRect &&
           currentMouseX >= textRect.x &&
@@ -1211,43 +1138,104 @@ const ImageRender = () => {
 
       setHoveredLogoId(hoveredLogo);
 
-      // Handle dragging logo
+      // Handle dragging logo with constraints
       if (isDragging && draggedLogoId) {
+        const logo = logos.find((l) => l.id === draggedLogoId);
+        if (!logo) return;
+
+        const logoImg = logoImages.get(draggedLogoId);
+        if (!logoImg) return;
+
         // Calculate new position as percentage
-        const newX = ((currentMouseX - dragOffset.x) / canvas.width) * 100;
-        const newY = ((currentMouseY - dragOffset.y) / canvas.height) * 100;
+        let newX = ((currentMouseX - dragOffset.x) / canvas.width) * 100;
+        let newY = ((currentMouseY - dragOffset.y) / canvas.height) * 100;
+
+        // Calculate logo dimensions
+        const logoWidth = (canvas.width * logo.size) / 100;
+        const logoHeight = (logoImg.height * logoWidth) / logoImg.width;
+
+        // Convert to percentage
+        const logoWidthPercent = (logoWidth / canvas.width) * 100;
+        const logoHeightPercent = (logoHeight / canvas.height) * 100;
+
+        // Calculate logo half-dimensions for centering
+        const halfWidthPercent = logoWidthPercent / 2;
+        const halfHeightPercent = logoHeightPercent / 2;
+
+        // Apply constraints to keep the logo inside the image boundaries
+        newX = Math.max(
+          imageBounds.left + halfWidthPercent,
+          Math.min(imageBounds.right - halfWidthPercent, newX)
+        );
+        newY = Math.max(
+          imageBounds.top + halfHeightPercent,
+          Math.min(imageBounds.bottom - halfHeightPercent, newY)
+        );
 
         // Update logo position
         updateLogo(draggedLogoId, {
           position: {
-            x: Math.max(0, Math.min(100, newX)),
-            y: Math.max(0, Math.min(100, newY)),
+            x: newX,
+            y: newY,
           },
         });
       }
 
-      // Handle dragging text - ensure this works even when there's no image
+      // Handle dragging text with constraints
       if (isDraggingText) {
         // Ensure canvas dimensions are valid
         if (canvas.width > 0 && canvas.height > 0) {
           // Calculate new position as percentage (accounting for offset)
-          const newX =
-            ((currentMouseX - textDragOffset.x) / canvas.width) * 100;
-          const newY =
-            ((currentMouseY - textDragOffset.y) / canvas.height) * 100;
+          let newX = ((currentMouseX - textDragOffset.x) / canvas.width) * 100;
+          let newY = ((currentMouseY - textDragOffset.y) / canvas.height) * 100;
 
-          console.log("New text position:", { newX, newY });
+          // Determine which text is being dragged
+          let currentText;
+          if (draggedTextId === null) {
+            // Legacy text is being dragged
+            currentText = textOverlay;
+          } else {
+            // Find the text in the array
+            currentText = textOverlays.find((t) => t.id === draggedTextId);
+          }
 
-          // Update text position with bounds checking
-          setTextPosition({
-            x: Math.max(0, Math.min(100, newX)),
-            y: Math.max(0, Math.min(100, newY)),
-          });
+          if (currentText) {
+            // Get text rectangle to calculate its dimensions
+            const textRect = calculateTextRect(canvas, currentText);
+            if (textRect) {
+              // Convert text rectangle dimensions to percentages
+              const textWidthPercent = (textRect.width / canvas.width) * 100;
+              const textHeightPercent = (textRect.height / canvas.height) * 100;
 
-          // Force a render to update the text position visually
-          renderCanvas();
-        } else {
-          console.error("Canvas dimensions are invalid for text dragging");
+              // Calculate half dimensions
+              const halfWidthPercent = textWidthPercent / 2;
+              const halfHeightPercent = textHeightPercent / 2;
+
+              // Apply constraints to keep text inside image boundaries
+              newX = Math.max(
+                imageBounds.left + halfWidthPercent,
+                Math.min(imageBounds.right - halfWidthPercent, newX)
+              );
+              newY = Math.max(
+                imageBounds.top + halfHeightPercent,
+                Math.min(imageBounds.bottom - halfHeightPercent, newY)
+              );
+            }
+
+            // Update text position
+            if (draggedTextId === null) {
+              // Update legacy text
+              setTextPosition({
+                x: newX,
+                y: newY,
+              });
+            } else {
+              // Update text in array
+              updateText(draggedTextId, {
+                position: { x: newX, y: newY },
+              });
+            }
+          }
         }
       }
 
@@ -1313,7 +1301,7 @@ const ImageRender = () => {
           });
         } else if (textOverlay.isSelected) {
           // Calculate new font size based on corner drag
-          const textRect = calculateTextRect(canvas);
+          const textRect = calculateTextRect(canvas, textOverlay);
           if (!textRect) return;
 
           // Use the width of the rect to determine font size
@@ -1340,11 +1328,19 @@ const ImageRender = () => {
               Math.min(120, (newWidth - 20) * scaleFactor)
             );
 
-            // Update text font size - use an object with the full text properties
-            setTextOverlay({
-              ...textOverlay, // Keep existing properties
-              fontSize: Math.round(newFontSize),
-            });
+            // Update text font size
+            if (draggedTextId === null) {
+              // Update legacy text
+              setTextOverlay({
+                ...textOverlay,
+                fontSize: Math.round(newFontSize),
+              });
+            } else {
+              // Update text in array
+              updateText(draggedTextId, {
+                fontSize: Math.round(newFontSize),
+              });
+            }
           }
         }
       };
@@ -1357,6 +1353,7 @@ const ImageRender = () => {
     [
       canvasRef,
       logos,
+      logoImages,
       calculateLogoRects,
       isDragging,
       isResizing,
@@ -1366,6 +1363,7 @@ const ImageRender = () => {
       initialSize,
       updateLogo,
       textOverlay,
+      textOverlays,
       calculateTextRect,
       isDraggingText,
       textDragOffset,
@@ -1373,8 +1371,7 @@ const ImageRender = () => {
       renderCanvas,
       isResizingCorner,
       resizeCorner,
-      setIsResizingCorner,
-      setResizeCorner,
+      calculateImageBounds,
     ]
   );
 
@@ -1415,10 +1412,32 @@ const ImageRender = () => {
   // Add keyboard shortcuts for selected logo
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip keyboard handling if we're editing text in an input field
+      if ((window as any).isEditingText) {
+        return;
+      }
+
       const selectedLogo = logos.find((logo) => logo.isSelected);
       if (!selectedLogo) return;
 
       const STEP = 1; // 1% movement step
+      const imageBounds = calculateImageBounds();
+
+      // Get logo dimensions
+      const logoImg = logoImages.get(selectedLogo.id);
+      if (!logoImg || !canvasRef.current) return;
+
+      const canvas = canvasRef.current;
+      const logoWidth = (canvas.width * selectedLogo.size) / 100;
+      const logoHeight = (logoImg.height * logoWidth) / logoImg.width;
+
+      // Convert to percentage
+      const logoWidthPercent = (logoWidth / canvas.width) * 100;
+      const logoHeightPercent = (logoHeight / canvas.height) * 100;
+
+      // Half dimensions for centering
+      const halfWidthPercent = logoWidthPercent / 2;
+      const halfHeightPercent = logoHeightPercent / 2;
 
       switch (e.key) {
         case "Delete":
@@ -1429,7 +1448,10 @@ const ImageRender = () => {
           updateLogo(selectedLogo.id, {
             position: {
               ...selectedLogo.position,
-              y: Math.max(0, selectedLogo.position.y - STEP),
+              y: Math.max(
+                imageBounds.top + halfHeightPercent,
+                selectedLogo.position.y - STEP
+              ),
             },
           });
           e.preventDefault();
@@ -1438,7 +1460,10 @@ const ImageRender = () => {
           updateLogo(selectedLogo.id, {
             position: {
               ...selectedLogo.position,
-              y: Math.min(100, selectedLogo.position.y + STEP),
+              y: Math.min(
+                imageBounds.bottom - halfHeightPercent,
+                selectedLogo.position.y + STEP
+              ),
             },
           });
           e.preventDefault();
@@ -1447,7 +1472,10 @@ const ImageRender = () => {
           updateLogo(selectedLogo.id, {
             position: {
               ...selectedLogo.position,
-              x: Math.max(0, selectedLogo.position.x - STEP),
+              x: Math.max(
+                imageBounds.left + halfWidthPercent,
+                selectedLogo.position.x - STEP
+              ),
             },
           });
           e.preventDefault();
@@ -1456,7 +1484,10 @@ const ImageRender = () => {
           updateLogo(selectedLogo.id, {
             position: {
               ...selectedLogo.position,
-              x: Math.min(100, selectedLogo.position.x + STEP),
+              x: Math.min(
+                imageBounds.right - halfWidthPercent,
+                selectedLogo.position.x + STEP
+              ),
             },
           });
           e.preventDefault();
@@ -1483,52 +1514,129 @@ const ImageRender = () => {
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [logos, updateLogo, deleteLogo]);
+  }, [
+    logos,
+    logoImages,
+    updateLogo,
+    deleteLogo,
+    calculateImageBounds,
+    canvasRef,
+  ]);
 
-  // Add keyboard shortcuts for text positioning (similar to logo shortcuts)
+  // Add keyboard shortcuts for text positioning
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Existing logo keyboard handling...
+      // Skip keyboard handling if we're editing text in an input field
+      if ((window as any).isEditingText) {
+        return;
+      }
 
-      // Add text keyboard handling
-      if (textOverlay.isSelected) {
+      // Find selected text (either legacy or from array)
+      const selectedLegacyText = textOverlay.isSelected ? textOverlay : null;
+      const selectedArrayText = textOverlays.find((t) => t.isSelected);
+
+      const selectedText = selectedArrayText || selectedLegacyText;
+
+      if (selectedText && canvasRef.current) {
         const STEP = 1; // 1% movement step
+        const imageBounds = calculateImageBounds();
 
+        // Get text rect to calculate constraints
+        const canvas = canvasRef.current;
+        const textRect = calculateTextRect(canvas, selectedText);
+        if (!textRect) return;
+
+        // Convert text rectangle dimensions to percentages
+        const textWidthPercent = (textRect.width / canvas.width) * 100;
+        const textHeightPercent = (textRect.height / canvas.height) * 100;
+
+        // Half dimensions for centering
+        const halfWidthPercent = textWidthPercent / 2;
+        const halfHeightPercent = textHeightPercent / 2;
+
+        const isLegacyText = selectedText === textOverlay;
+
+        // Update position based on key pressed
         switch (e.key) {
           case "ArrowUp":
-            setTextPosition((prev) => ({
-              ...prev,
-              y: Math.max(0, prev.y - STEP),
-            }));
+            const newYUp = Math.max(
+              imageBounds.top + halfHeightPercent,
+              selectedText.position.y - STEP
+            );
+
+            if (isLegacyText) {
+              setTextPosition((prev) => ({ ...prev, y: newYUp }));
+            } else {
+              updateText(selectedText.id, {
+                position: { ...selectedText.position, y: newYUp },
+              });
+            }
             e.preventDefault();
             break;
+
           case "ArrowDown":
-            setTextPosition((prev) => ({
-              ...prev,
-              y: Math.min(100, prev.y + STEP),
-            }));
+            const newYDown = Math.min(
+              imageBounds.bottom - halfHeightPercent,
+              selectedText.position.y + STEP
+            );
+
+            if (isLegacyText) {
+              setTextPosition((prev) => ({ ...prev, y: newYDown }));
+            } else {
+              updateText(selectedText.id, {
+                position: { ...selectedText.position, y: newYDown },
+              });
+            }
             e.preventDefault();
             break;
+
           case "ArrowLeft":
-            setTextPosition((prev) => ({
-              ...prev,
-              x: Math.max(0, prev.x - STEP),
-            }));
+            const newXLeft = Math.max(
+              imageBounds.left + halfWidthPercent,
+              selectedText.position.x - STEP
+            );
+
+            if (isLegacyText) {
+              setTextPosition((prev) => ({ ...prev, x: newXLeft }));
+            } else {
+              updateText(selectedText.id, {
+                position: { ...selectedText.position, x: newXLeft },
+              });
+            }
             e.preventDefault();
             break;
+
           case "ArrowRight":
-            setTextPosition((prev) => ({
-              ...prev,
-              x: Math.min(100, prev.x + STEP),
-            }));
+            const newXRight = Math.min(
+              imageBounds.right - halfWidthPercent,
+              selectedText.position.x + STEP
+            );
+
+            if (isLegacyText) {
+              setTextPosition((prev) => ({ ...prev, x: newXRight }));
+            } else {
+              updateText(selectedText.id, {
+                position: { ...selectedText.position, x: newXRight },
+              });
+            }
             e.preventDefault();
             break;
+
           case "Delete":
           case "Backspace":
-            deleteText();
+            if (isLegacyText) {
+              deleteText();
+            } else {
+              deleteTextById(selectedText.id);
+            }
             break;
+
           case "Escape":
-            selectText(false);
+            if (isLegacyText) {
+              selectText(false);
+            } else {
+              selectTextById(null);
+            }
             break;
         }
       }
@@ -1540,22 +1648,19 @@ const ImageRender = () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [
-    logos,
-    updateLogo,
-    deleteLogo,
-    textOverlay.isSelected,
+    textOverlay,
+    textOverlays,
     selectText,
+    selectTextById,
     deleteText,
-    textPosition,
+    deleteTextById,
+    updateText,
+    calculateImageBounds,
+    canvasRef,
+    calculateTextRect,
   ]);
 
   // Create context value with memoized captureCanvas function
-  const contextValue = React.useMemo(
-    () => ({
-      captureCanvas,
-    }),
-    [captureCanvas, prepareCanvasForExport]
-  );
 
   // Delete main image handler
   const handleDeleteMainImage = () => {
@@ -1610,19 +1715,31 @@ const ImageRender = () => {
     };
   }, []);
 
-  // When setting text, ensure we set it to center initially
+  // When setting text, ensure we set it to center initially and within image bounds
   useEffect(() => {
     // Reset text position to center when text becomes visible but wasn't before
     if (
       textOverlay.isVisible &&
       textOverlay.text &&
-      !prevTextVisibleRef.current
+      !prevTextVisibleRef.current &&
+      canvasRef.current
     ) {
-      setTextPosition({ x: 50, y: 50 });
+      const imageBounds = calculateImageBounds();
+
+      // Calculate the center within image bounds
+      const centerX = (imageBounds.left + imageBounds.right) / 2;
+      const centerY = (imageBounds.top + imageBounds.bottom) / 2;
+
+      setTextPosition({ x: centerX, y: centerY });
     }
     prevTextVisibleRef.current =
       textOverlay.isVisible && Boolean(textOverlay.text);
-  }, [textOverlay.isVisible, textOverlay.text]);
+  }, [
+    textOverlay.isVisible,
+    textOverlay.text,
+    calculateImageBounds,
+    canvasRef,
+  ]);
 
   // Add this ref to track previous state
   const prevTextVisibleRef = useRef(false);
@@ -1659,117 +1776,114 @@ const ImageRender = () => {
   }, []);
 
   return (
-    <ImageRenderContext.Provider value={contextValue}>
-      <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
-        <div
-          className="fixed bg-white dark-bg-neutral-900 rounded-lg shadow-md z-10"
-          style={{
-            left: "calc(50% - 192px)",
-            top: "43%",
-            transform: "translate(-50%, -50%)",
-            height: "auto",
-            minHeight: `${
-              canvasWidth /
-              (designStoreAspectRatio.split(":").map(Number)[0] /
-                designStoreAspectRatio.split(":").map(Number)[1])
-            }px`,
-            width: `${canvasWidth}px`,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            padding: "16px",
-            margin: "20px auto",
-          }}
-        >
-          <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark-text-white">
-            Canvas
-          </h2>
+    <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
+      <div
+        className="fixed bg-white dark-bg-neutral-900 rounded-lg shadow-md z-10"
+        style={{
+          left: "calc(50% - 192px)",
+          top: "43%",
+          transform: "translate(-50%, -50%)",
+          height: "auto",
+          minHeight: `${
+            canvasWidth /
+            (designStoreAspectRatio.split(":").map(Number)[0] /
+              designStoreAspectRatio.split(":").map(Number)[1])
+          }px`,
+          width: `${canvasWidth}px`,
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          alignItems: "center",
+          padding: "16px",
+          margin: "20px auto",
+        }}
+      >
+        <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark-text-white">
+          Canvas
+        </h2>
 
-          {imageUrl && (
+        {imageUrl && (
+          <button
+            className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover-opacity-100 z-10"
+            onClick={handleDeleteMainImage}
+            title="Remove image from canvas"
+          >
+            <Trash2 size={16} />
+          </button>
+        )}
+
+        <div className="relative w-full">
+          <canvas
+            ref={canvasRef}
+            className="w-full h-auto rounded-lg shadow-lg"
+            style={{
+              maxWidth: "100%",
+              objectFit: "contain",
+            }}
+          />
+        </div>
+
+        {/* Empty state message */}
+        {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
+          <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+            Select an image or add text to display
+          </div>
+        )}
+
+        {/* Controls overlay */}
+        <div className="flex gap-2 justify-end mt-4">
+          {logos.length > 0 && (
             <button
-              className="absolute top-3 right-3 p-1 rounded-full bg-red-500 text-white opacity-50 hover-opacity-100 z-10"
-              onClick={handleDeleteMainImage}
-              title="Remove image from canvas"
+              onClick={() => selectLogo(null)}
+              className="p-2 bg-white rounded-full shadow-md hover-bg-gray-100"
+              title="Deselect all logos"
             >
-              <Trash2 size={16} />
-            </button>
-          )}
-
-          <div className="relative w-full">
-            <canvas
-              ref={canvasRef}
-              className="w-full h-auto rounded-lg shadow-lg"
-              style={{
-                maxWidth: "100%",
-                objectFit: "contain",
-              }}
-            />
-          </div>
-
-          {/* Empty state message */}
-          {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
-            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
-              Select an image or add text to display
-            </div>
-          )}
-
-          {/* Controls overlay */}
-          <div className="flex gap-2 justify-end mt-4">
-            {logos.length > 0 && (
-              <button
-                onClick={() => selectLogo(null)}
-                className="p-2 bg-white rounded-full shadow-md hover-bg-gray-100"
-                title="Deselect all logos"
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21z" />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {/* Help text */}
-          {logos.some((logo) => logo.isSelected) && (
-            <div className="mt-2 text-xs text-gray-500">
-              <p>
-                Tip: Use arrow keys to move logo, +/- to resize, Delete to
-                remove
-              </p>
-            </div>
-          )}
-          {textOverlay.isVisible && textOverlay.text && (
-            <div className="mt-2 text-xs text-gray-500">
-              <p>Tip: Click and drag to position text</p>
-            </div>
+                <path d="M21 11H6.83l3.58-3.59L9 6l-6 6 6 6 1.41-1.41L6.83 13H21z" />
+              </svg>
+            </button>
           )}
         </div>
 
-        {/* Spacer with dynamic height */}
-        <div
-          style={{
-            height: `${
-              canvasWidth /
-                (designStoreAspectRatio.split(":").map(Number)[0] /
-                  designStoreAspectRatio.split(":").map(Number)[1]) +
-              100
-            }px`,
-            width: `${canvasWidth}px`,
-            margin: "0 auto",
-          }}
-        />
+        {/* Help text */}
+        {logos.some((logo) => logo.isSelected) && (
+          <div className="mt-2 text-xs text-gray-500">
+            <p>
+              Tip: Use arrow keys to move logo, +/- to resize, Delete to remove
+            </p>
+          </div>
+        )}
+        {textOverlay.isVisible && textOverlay.text && (
+          <div className="mt-2 text-xs text-gray-500">
+            <p>Tip: Click and drag to position text</p>
+          </div>
+        )}
       </div>
-    </ImageRenderContext.Provider>
+
+      {/* Spacer with dynamic height */}
+      <div
+        style={{
+          height: `${
+            canvasWidth /
+              (designStoreAspectRatio.split(":").map(Number)[0] /
+                designStoreAspectRatio.split(":").map(Number)[1]) +
+            100
+          }px`,
+          width: `${canvasWidth}px`,
+          margin: "0 auto",
+        }}
+      />
+    </div>
   );
 };
 

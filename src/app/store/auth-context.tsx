@@ -21,6 +21,7 @@ type AuthContextType = {
   signInWithMagicLink: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshAuthState: () => Promise<void>;
+  updateUsername: (newUsername: string) => Promise<void>;
   defaultImage: DefaultImage | null;
 };
 
@@ -149,6 +150,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // Update username - this will update the email address
+  const updateUsername = async (newUsername: string) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      if (!user) {
+        throw new Error("No user is logged in");
+      }
+
+      const currentEmail = user.email;
+      if (!currentEmail) {
+        throw new Error("Current user has no email");
+      }
+
+      // Get domain part of the email
+      const domain = currentEmail.split("@")[1];
+      if (!domain) {
+        throw new Error("Invalid current email format");
+      }
+
+      // Construct new email with new username and same domain
+      const newEmail = `${newUsername}@${domain}`;
+
+      // Update email in Supabase Auth
+      const { error } = await supabase.auth.updateUser({ email: newEmail });
+
+      if (error) {
+        throw error;
+      }
+
+      // Email verification will be sent automatically
+      alert(
+        "A verification email has been sent to your new email address. Please check your inbox to complete the username change."
+      );
+
+      // Update the local user state to reflect the pending change
+      // Note: The actual change won't happen until verified
+      if (user) {
+        setUser({ ...user, email: newEmail });
+      }
+
+      // Refresh auth state to get the updated user data
+      await refreshAuthState();
+    } catch (err) {
+      console.error("Error updating username:", err);
+      setError(err as AuthError);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Sign out
   const signOut = async () => {
     setIsLoading(true);
@@ -184,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithMagicLink,
     signOut,
     refreshAuthState,
+    updateUsername,
     defaultImage: defaultImage || null,
   };
 

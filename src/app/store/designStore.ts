@@ -26,6 +26,7 @@ export interface PresetFilter {
 }
 
 export interface TextOverlay {
+  id: string;
   text: string;
   isVisible: boolean;
   color: string;
@@ -38,6 +39,10 @@ export interface TextOverlay {
   translationX: number;
   translationY: number;
   isSelected?: boolean;
+  position: {
+    x: number;
+    y: number;
+  };
 }
 
 interface DesignState {
@@ -86,6 +91,13 @@ interface DesignState {
   setTextSpacing: (spacing: number) => void;
   setTextTranslationX: (translationX: number) => void;
   setTextTranslationY: (translationY: number) => void;
+
+  textOverlays: TextOverlay[];
+  addText: (text: string) => void;
+  updateText: (id: string, updates: Partial<Omit<TextOverlay, "id">>) => void;
+  deleteTextById: (id: string) => void;
+  selectTextById: (id: string | null) => void;
+  getSelectedText: () => TextOverlay | undefined;
 }
 
 export const presetFilters: PresetFilter[] = [
@@ -128,18 +140,19 @@ export const useDesignStore = create<DesignState>((set, get) => {
           spacing: designState.position?.spacing || 0,
           selectedPreset: designState.preset || presetFilters[0],
           textOverlay: designState.textOverlay || {
+            id: "default",
             text: "",
+            isVisible: false,
+            color: "#000000",
+            fontFamily: "ABCDiatype-Regular",
             fontSize: 24,
-            color: "#ffffff",
-            fontFamily: "Space Grotesk",
             isBold: false,
             isItalic: false,
-            isVisible: false,
-            isSelected: false,
             rotation: 0,
             spacing: 0,
             translationX: 0,
             translationY: 0,
+            position: { x: 50, y: 50 },
           },
           isLoading: false,
         });
@@ -215,6 +228,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
     selectedPreset: presetFilters[0],
     imageUrl: "",
     textOverlay: {
+      id: "default",
       text: "",
       isVisible: false,
       color: "#000000",
@@ -226,6 +240,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
       spacing: 0,
       translationX: 0,
       translationY: 0,
+      position: { x: 50, y: 50 },
     },
     savedDesigns: [],
     isLoading: false,
@@ -528,5 +543,65 @@ export const useDesignStore = create<DesignState>((set, get) => {
       set((state) => ({
         textOverlay: { ...state.textOverlay, translationY },
       })),
+
+    textOverlays: [],
+    addText: (text) =>
+      set((state) => {
+        const id = `text-${Date.now()}-${Math.random()
+          .toString(36)
+          .substr(2, 9)}`;
+        const newText: TextOverlay = {
+          id,
+          text,
+          isVisible: true,
+          color: "#000000",
+          fontFamily: "ABCDiatype-Regular",
+          fontSize: 24,
+          isBold: false,
+          isItalic: false,
+          rotation: 0,
+          spacing: 0,
+          translationX: 0,
+          translationY: 0,
+          isSelected: true,
+          position: { x: 50, y: 50 },
+        };
+
+        // Deselect any previously selected text
+        const updatedTexts = state.textOverlays.map((text) => ({
+          ...text,
+          isSelected: false,
+        }));
+
+        return {
+          textOverlays: [...updatedTexts, newText],
+        };
+      }),
+
+    updateText: (id, updates) =>
+      set((state) => {
+        const updatedTexts = state.textOverlays.map((text) =>
+          text.id === id ? { ...text, ...updates } : text
+        );
+
+        return { textOverlays: updatedTexts };
+      }),
+
+    deleteTextById: (id) =>
+      set((state) => ({
+        textOverlays: state.textOverlays.filter((text) => text.id !== id),
+      })),
+
+    selectTextById: (id) =>
+      set((state) => ({
+        textOverlays: state.textOverlays.map((text) => ({
+          ...text,
+          isSelected: text.id === id,
+        })),
+      })),
+
+    getSelectedText: () => {
+      return get().textOverlays.find((text) => text.isSelected);
+    },
   };
 });

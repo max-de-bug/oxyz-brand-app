@@ -18,6 +18,18 @@ export function useUserProfile() {
   });
 }
 
+export function useUpdateUsername() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (username: string) =>
+      apiClient.patch("/users/username", { username }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user", "profile"] });
+    },
+  });
+}
+
 // Logo queries
 export function useLogos() {
   return useQuery({
