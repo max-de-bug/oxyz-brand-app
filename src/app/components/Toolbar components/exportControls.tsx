@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useImageStore } from "@/app/store/imageStore";
 import { Download, Copy, AlertCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 export const captureVisibleCanvas = async (): Promise<string | null> => {
   try {
@@ -88,15 +89,19 @@ export const captureVisibleCanvas = async (): Promise<string | null> => {
 const ExportControls = () => {
   const { imageUrl } = useImageStore();
   const [activeTab, setActiveTab] = useState<"SVG" | "Video" | "PNG" | "GIF">(
-    "SVG"
+    "PNG"
   );
   const [exportError, setExportError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
 
-  // Separate function to just switch to PNG tab without downloading
-  const switchToPngTab = () => {
-    setActiveTab("PNG");
-    setExportError(null);
+  // Helper function to show "coming soon" toast
+  const showComingSoonToast = () => {
+    toast({
+      title: "Coming Soon!",
+      description: "This export option will be available in a future update.",
+      duration: 3000,
+    });
   };
 
   const handleExportPNG = async () => {
@@ -213,31 +218,7 @@ const ExportControls = () => {
       <ul className="flex flex-wrap text-xs font-medium text-center text-gray-500 dark:text-gray-400 gap-2">
         <li className="flex-1">
           <button
-            onClick={() => setActiveTab("SVG")}
-            className={`flex items-center justify-center w-full h-10 px-4 rounded-lg ${
-              activeTab === "SVG"
-                ? "text-white bg-neutral-800 hover:bg-neutral-700"
-                : "hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-neutral-800 dark:hover:text-white"
-            }`}
-          >
-            SVG
-          </button>
-        </li>
-        <li className="flex-1">
-          <button
-            onClick={() => setActiveTab("Video")}
-            className={`flex items-center justify-center w-full h-10 px-4 rounded-lg ${
-              activeTab === "Video"
-                ? "text-white bg-neutral-800 hover:bg-neutral-700"
-                : "hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-neutral-800 dark:hover:text-white"
-            }`}
-          >
-            Video
-          </button>
-        </li>
-        <li className="flex-1">
-          <button
-            onClick={switchToPngTab}
+            onClick={() => setActiveTab("PNG")}
             className={`flex items-center justify-center w-full h-10 px-4 rounded-lg ${
               activeTab === "PNG"
                 ? "text-white bg-neutral-800 hover:bg-neutral-700"
@@ -249,70 +230,71 @@ const ExportControls = () => {
         </li>
         <li className="flex-1">
           <button
-            onClick={() => setActiveTab("GIF")}
-            className={`flex items-center justify-center w-full h-10 px-4 rounded-lg ${
-              activeTab === "GIF"
-                ? "text-white bg-neutral-800 hover:bg-neutral-700"
-                : "hover:text-gray-900 hover:bg-gray-100 dark:hover:bg-neutral-800 dark:hover:text-white"
-            }`}
+            onClick={showComingSoonToast}
+            className="flex items-center justify-center w-full h-10 px-4 rounded-lg text-gray-400 bg-gray-100 dark:bg-neutral-800 cursor-not-allowed opacity-60"
+            disabled
+            aria-disabled="true"
+          >
+            SVG
+          </button>
+        </li>
+        <li className="flex-1">
+          <button
+            onClick={showComingSoonToast}
+            className="flex items-center justify-center w-full h-10 px-4 rounded-lg text-gray-400 bg-gray-100 dark:bg-neutral-800 cursor-not-allowed opacity-60"
+            disabled
+            aria-disabled="true"
+          >
+            Video
+          </button>
+        </li>
+        <li className="flex-1">
+          <button
+            onClick={showComingSoonToast}
+            className="flex items-center justify-center w-full h-10 px-4 rounded-lg text-gray-400 bg-gray-100 dark:bg-neutral-800 cursor-not-allowed opacity-60"
+            disabled
+            aria-disabled="true"
           >
             GIF
           </button>
         </li>
       </ul>
 
-      {activeTab === "SVG" && (
-        <div className="mt-4">
-          <p className="text-xs mb-2">SVG Code:</p>
-          <pre className="bg-white dark:bg-neutral-800 p-2 rounded-lg text-xs max-h-[10rem] text-left overflow-x-auto text-neutral-600 dark:text-neutral-400"></pre>
-          <div className="mt-4 flex space-x-2 w-full justify-between">
-            <button className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-4 py-3 rounded-lg flex items-center">
-              <Copy size={14} className="mr-2" /> Copy SVG
-            </button>
-            <button className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-4 py-3 rounded-lg flex items-center">
-              <Download size={14} className="mr-2" /> Download SVG
-            </button>
-          </div>
-        </div>
-      )}
+      <div className="mt-4">
+        <p className="text-xs mb-2">PNG Export:</p>
+        <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg text-center">
+          {isExporting ? (
+            <div className="flex flex-col items-center justify-center py-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                {exportError || "Preparing canvas for export..."}
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
+                {!imageUrl
+                  ? "Click the button below to download your text design as a PNG image."
+                  : "Click the button below to download your design as a PNG image."}
+              </p>
+              <button
+                onClick={handleExportPNG}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-3 rounded-lg flex items-center mx-auto font-medium"
+                disabled={isExporting}
+              >
+                <Download size={16} className="mr-2" /> Download PNG
+              </button>
 
-      {activeTab === "PNG" && (
-        <div className="mt-4">
-          <p className="text-xs mb-2">PNG Export:</p>
-          <div className="bg-white dark:bg-neutral-800 p-4 rounded-lg text-center">
-            {isExporting ? (
-              <div className="flex flex-col items-center justify-center py-4">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-neutral-800 mb-2"></div>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                  {exportError || "Preparing canvas for export..."}
-                </p>
-              </div>
-            ) : (
-              <>
-                <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
-                  {!imageUrl
-                    ? "Click the button below to download your text design as a PNG image."
-                    : "Click the button below to download your design as a PNG image."}
-                </p>
-                <button
-                  onClick={handleExportPNG}
-                  className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-3 rounded-lg flex items-center mx-auto font-medium"
-                  disabled={isExporting}
-                >
-                  <Download size={16} className="mr-2" /> Download PNG
-                </button>
-
-                {exportError && (
-                  <div className="mt-4 p-2 bg-red-100 text-red-700 rounded-lg flex items-center text-xs">
-                    <AlertCircle size={14} className="mr-2" />
-                    {exportError}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+              {exportError && (
+                <div className="mt-4 p-2 bg-red-100 text-red-700 rounded-lg flex items-center text-xs">
+                  <AlertCircle size={14} className="mr-2" />
+                  {exportError}
+                </div>
+              )}
+            </>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

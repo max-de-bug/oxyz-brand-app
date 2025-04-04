@@ -229,29 +229,6 @@ const LogoDesigns = () => {
         </div>
       )}
 
-      <div className="mb-4">
-        <Label htmlFor="logo-upload" className="block mb-2 cursor-pointer">
-          <div className="flex items-center gap-2 p-2 border border-dashed border-gray-300 rounded hover:bg-gray-600">
-            <Upload size={16} />
-            <span>Upload Logo</span>
-          </div>
-          <input
-            id="logo-upload"
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleUpload}
-            disabled={uploading}
-          />
-        </Label>
-        {uploading && (
-          <div className="flex items-center gap-2 mt-2 text-sm text-blue-600">
-            <Loader2 size={16} className="animate-spin" />
-            <span>Uploading...</span>
-          </div>
-        )}
-      </div>
-
       {/* Updated Canvas Logos Section */}
       <div className="mb-4">
         <h3 className="text-sm font-medium mb-2">

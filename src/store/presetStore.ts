@@ -325,16 +325,35 @@ export const usePresetStore = create<PresetStore>((set, get) => ({
     }
   },
 
-  createPreset: async (preset) => {
+  createPreset: async (preset: Partial<Preset>) => {
+    const { fetchCloudinaryPresets } = get(); // Get fetchCloudinaryPresets
     try {
-      await apiClient.post("/presets", preset);
-      // Refresh presets after creation
-      get().fetchPresets();
+      set({ loading: true, error: null });
+      // Ensure required fields are present, provide defaults if necessary
+      const finalPreset = {
+        name: preset.name || "Unnamed Preset",
+        filter: preset.filter || {}, // Ensure filter object exists
+      };
+      // Assuming the POST /presets endpoint now handles Cloudinary upload
+      await apiClient.post<{ data: Preset }>("/presets", finalPreset);
+
+      // --- Removed adding to local 'presets' state ---
+      // set((state) => ({
+      //   presets: [...state.presets, response.data], // We might not get a preset back directly, or want to rely on Cloudinary fetch
+      //   loading: false,
+      // }));
+
+      set({ loading: false }); // Set loading false after API call
+
+      // --- Added: Refetch Cloudinary presets after successful creation ---
+      await fetchCloudinaryPresets();
+
     } catch (error) {
       console.error("Error creating preset:", error);
       set({
         error:
           error instanceof Error ? error.message : "Failed to create preset",
+        loading: false,
       });
     }
   },
