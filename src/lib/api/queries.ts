@@ -11,10 +11,30 @@ import { Logo } from "@/app/services/logos.service";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
 // User queries
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export function useUserProfile() {
-  return useQuery({
+  return useQuery<UserProfile>({
     queryKey: ["user", "profile"],
-    queryFn: () => apiClient.get("/users/profile"),
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<UserProfile>("/users/profile");
+        return response;
+      } catch (error) {
+        console.error("Error fetching user profile:", error);
+        throw error;
+      }
+    },
+    retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   });
 }
 

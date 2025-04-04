@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { z } from "zod";
-import { useUpdateUsername } from "@/lib/api/queries";
+import { useUpdateUsername, useUserProfile } from "@/lib/api/queries";
 
 // Zod schema for username validation
 const usernameSchema = z
@@ -34,6 +34,7 @@ const usernameSchema = z
 export default function AuthButton() {
   const { user, defaultImage, signOut } = useAuth();
   const updateUsernameMutation = useUpdateUsername();
+  const { data: userProfile, isLoading: isProfileLoading } = useUserProfile();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -41,11 +42,15 @@ export default function AuthButton() {
   const [newUsername, setNewUsername] = useState("");
   const [validationError, setValidationError] = useState("");
 
-  // Reset form when dialog opens/closes
+  // Get current username from user profile or fallback to email
+  const currentUsername = userProfile?.name || user?.email?.split("@")[0] || "";
 
-  // Get current username from user data
-  const currentUsername = user?.email?.split("@")[0];
-  console.log("currentUsername", currentUsername);
+  // Set initial value of newUsername when dialog opens
+  useEffect(() => {
+    if (isOpen && currentUsername) {
+      setNewUsername(currentUsername);
+    }
+  }, [isOpen, currentUsername]);
 
   const handleSignIn = () => {
     router.push("/auth/sign-in");
@@ -112,8 +117,8 @@ export default function AuthButton() {
       <div className="flex items-center gap-2">
         <Avatar className="h-8 w-8">
           <AvatarImage
-            src={defaultImage?.url || ""}
-            alt={user.email || ""}
+            src={userProfile?.image || defaultImage?.url || ""}
+            alt={userProfile?.name || user.email || ""}
             onError={(e) => {
               // If user image fails to load, fall back to default image
               if (defaultImage?.url) {
@@ -126,7 +131,7 @@ export default function AuthButton() {
           </AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium hidden md:inline-block">
-          {currentUsername || "User"}
+          {isProfileLoading ? "Loading..." : currentUsername || "User"}
         </span>
       </div>
 

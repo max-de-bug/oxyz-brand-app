@@ -5,8 +5,14 @@ import { useImageStore } from "@/app/store/imageStore";
 import { TextOverlay, useDesignStore } from "@/app/store/designStore";
 import { Trash2 } from "lucide-react";
 
-const ImageRender = () => {
+// Add memo wrapper to prevent unnecessary re-renders from parent
+const ImageRender = React.memo(() => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Add a ref to track if we should render the canvas
+  const shouldRenderRef = useRef(true);
+  // Add a ref to track the last render timestamp
+  const lastRenderTimeRef = useRef(0);
+
   const [mainImage, setMainImage] = useState<HTMLImageElement | null>(null);
   const [logoImages, setLogoImages] = useState<Map<string, HTMLImageElement>>(
     new Map()
@@ -236,14 +242,14 @@ const ImageRender = () => {
     return imageBounds;
   }, [canvasRef, mainImage]);
 
-  // Memoize the calculateLogoRects function to prevent unnecessary recalculations
+  // Memoize the calculateLogoRects function with more specific dependencies
   const calculateLogoRects = useCallback(
     (
       canvas: HTMLCanvasElement
     ): Map<string, { x: number; y: number; width: number; height: number }> => {
       const rects = new Map();
 
-      logos.forEach((logo) => {
+      for (const logo of logos) {
         const logoImg = logoImages.get(logo.id);
         if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
           // Calculate basic dimensions
@@ -261,14 +267,14 @@ const ImageRender = () => {
             height: logoHeight,
           });
         }
-      });
+      }
 
       return rects;
     },
     [logos, logoImages]
   );
 
-  // Update calculateTextRect to accept a specific text overlay
+  // Optimize calculateTextRect to be more efficient
   const calculateTextRect = useCallback(
     (
       canvas: HTMLCanvasElement,
@@ -280,7 +286,6 @@ const ImageRender = () => {
 
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        console.error("Could not get canvas context for text rect calculation");
         return null;
       }
 
@@ -339,7 +344,7 @@ const ImageRender = () => {
 
       return rect;
     },
-    [textOverlay]
+    [] // No dependencies since we take currentText as a parameter
   );
 
   // Load main image when imageUrl changes
@@ -434,6 +439,163 @@ const ImageRender = () => {
     }
   }, [logos]);
 
+  // Helper function to draw a text overlay
+  const drawTextOverlay = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      canvas: HTMLCanvasElement,
+      text: TextOverlay
+    ) => {
+      // Save current context state
+      ctx.save();
+
+      // Calculate text position, applying translationX and translationY offsets
+      const textX =
+        (canvas.width * text.position.x) / 100 + (text.translationX || 0);
+      const textY =
+        (canvas.height * text.position.y) / 100 + (text.translationY || 0);
+
+      // Translate to the text position for rotation
+      ctx.translate(textX, textY);
+
+      // Apply rotation (convert degrees to radians)
+      ctx.rotate((text.rotation * Math.PI) / 180);
+
+      // Set text properties
+      const fontStyle = text.isItalic ? "italic " : "";
+      const fontWeight = text.isBold ? "bold " : "";
+      const fontFamilyName = text.fontFamily.includes("-")
+        ? `"${text.fontFamily}"`
+        : text.fontFamily;
+
+      ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${fontFamilyName}, sans-serif`;
+      ctx.fillStyle = text.color;
+      ctx.textBaseline = "middle";
+      ctx.textAlign = "center";
+
+      // Apply letter spacing if needed
+      if (text.spacing !== 0) {
+        // Draw each character separately with spacing
+        const chars = text.text.split("");
+        let totalWidth = 0;
+
+        // First calculate total width with spacing
+        for (let i = 0; i < chars.length; i++) {
+          const charWidth = ctx.measureText(chars[i]).width;
+          totalWidth += charWidth + (i < chars.length - 1 ? text.spacing : 0);
+        }
+
+        // Start position (centered)
+        let xPos = -totalWidth / 2;
+
+        // Draw each character
+        for (let i = 0; i < chars.length; i++) {
+          const charWidth = ctx.measureText(chars[i]).width;
+          ctx.fillText(chars[i], xPos + charWidth / 2, 0);
+          xPos += charWidth + text.spacing;
+        }
+      } else {
+        // Draw text normally if no spacing
+        ctx.fillText(text.text, 0, 0);
+      }
+
+      // Restore the context to draw the rectangle in the correct position
+      ctx.restore();
+
+      // Draw selection rectangle and controls separately (after text is drawn)
+      const textRect = calculateTextRect(canvas, text);
+      if (textRect) {
+        const isDraggingThisText =
+          isDraggingText &&
+          (text.id === draggedTextId ||
+            (draggedTextId === null && text === textOverlay));
+
+        if (isDraggingThisText || text.isSelected) {
+          // Draw a more prominent bounding box when dragging or selected
+          ctx.strokeStyle = "#3b82f6"; // Blue
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
+          ctx.strokeRect(
+            textRect.x,
+            textRect.y,
+            textRect.width,
+            textRect.height
+          );
+
+          // Draw control points
+          ctx.fillStyle = "#3b82f6";
+          const handleSize = 6;
+
+          // Draw handles at corners
+          [
+            { x: textRect.x, y: textRect.y }, // Top-left
+            { x: textRect.x + textRect.width, y: textRect.y }, // Top-right
+            { x: textRect.x, y: textRect.y + textRect.height }, // Bottom-left
+            { x: textRect.x + textRect.width, y: textRect.y + textRect.height }, // Bottom-right
+          ].forEach((point) => {
+            ctx.fillRect(
+              point.x - handleSize / 2,
+              point.y - handleSize / 2,
+              handleSize,
+              handleSize
+            );
+          });
+
+          // Draw delete button when selected (not dragging)
+          if (text.isSelected && !isDraggingThisText) {
+            // Draw delete button at top right
+            ctx.fillStyle = "#ef4444"; // Red
+            ctx.beginPath();
+            ctx.arc(
+              textRect.x + textRect.width,
+              textRect.y,
+              10,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+
+            // Draw X in delete button
+            ctx.strokeStyle = "#ffffff";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
+            ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
+            ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
+            ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
+            ctx.stroke();
+          }
+        } else if (
+          mouseX >= textRect.x &&
+          mouseX <= textRect.x + textRect.width &&
+          mouseY >= textRect.y &&
+          mouseY <= textRect.y + textRect.height
+        ) {
+          // Draw a subtle bounding box when hovering
+          ctx.strokeStyle = "#9ca3af"; // Gray
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(
+            textRect.x,
+            textRect.y,
+            textRect.width,
+            textRect.height
+          );
+          ctx.setLineDash([]);
+        }
+      }
+    },
+    [
+      calculateTextRect,
+      isDraggingText,
+      draggedTextId,
+      textOverlay,
+      mouseX,
+      mouseY,
+    ]
+  );
+
   // Update renderCanvas to handle multiple text overlays
   const renderCanvas = useCallback(() => {
     if (!canvasRef.current) return;
@@ -441,6 +603,11 @@ const ImageRender = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
+
+    // Cache values to prevent re-calculation within the same render
+    const currentCanvasWidth = canvasWidth;
+    const aspectRatioValues = designStoreAspectRatio.split(":").map(Number);
+    const designAspectRatio = aspectRatioValues[0] / aspectRatioValues[1];
 
     // Determine the aspect ratio to use (prefer image's aspect ratio if available)
     let aspectRatio;
@@ -452,22 +619,16 @@ const ImageRender = () => {
       aspectRatio = mainImage.naturalWidth / mainImage.naturalHeight;
     } else {
       // Fall back to the design store aspect ratio
-      const [widthRatio, heightRatio] = designStoreAspectRatio
-        .split(":")
-        .map(Number);
-      aspectRatio = widthRatio / heightRatio;
+      aspectRatio = designAspectRatio;
     }
 
     // Ensure canvas has proper dimensions before drawing
     if (
-      canvas.width !== canvasWidth ||
-      Math.abs(canvas.height - canvasWidth / aspectRatio) > 1
+      canvas.width !== currentCanvasWidth ||
+      Math.abs(canvas.height - currentCanvasWidth / aspectRatio) > 1
     ) {
-      canvas.width = canvasWidth;
-      canvas.height = canvasWidth / aspectRatio;
-      console.log(
-        `Canvas resized to ${canvas.width}x${canvas.height}, aspect ratio: ${aspectRatio}`
-      );
+      canvas.width = currentCanvasWidth;
+      canvas.height = currentCanvasWidth / aspectRatio;
     }
 
     // Clear canvas with solid color for performance
@@ -509,7 +670,7 @@ const ImageRender = () => {
       ctx.restore();
     }
 
-    // Calculate logo rects for hit testing
+    // Calculate logo rects for hit testing once per render
     const logoRects = calculateLogoRects(canvas);
 
     // Draw logos
@@ -611,6 +772,8 @@ const ImageRender = () => {
       }
     });
   }, [
+    canvasRef,
+    canvasWidth,
     mainImage,
     logoImages,
     logos,
@@ -621,196 +784,55 @@ const ImageRender = () => {
     opacity,
     hoveredLogoId,
     calculateLogoRects,
-    canvasWidth,
-    textOverlay,
+    textOverlay.isVisible,
+    textOverlay.text,
+    textOverlay.color,
+    textOverlay.fontFamily,
+    textOverlay.fontSize,
+    textOverlay.isBold,
+    textOverlay.isItalic,
+    textOverlay.position,
+    textOverlay.rotation,
+    textOverlay.spacing,
+    textOverlay.isSelected,
     textOverlays,
-    textPosition,
-    isDraggingText,
-    calculateTextRect,
-    mouseX,
-    mouseY,
+    drawTextOverlay,
     designStoreAspectRatio,
+    textPosition,
   ]);
 
-  // Helper function to draw a text overlay
-  const drawTextOverlay = (
-    ctx: CanvasRenderingContext2D,
-    canvas: HTMLCanvasElement,
-    text: TextOverlay
-  ) => {
-    // Save current context state
-    ctx.save();
-
-    // Calculate text position, applying translationX and translationY offsets
-    const textX =
-      (canvas.width * text.position.x) / 100 + (text.translationX || 0);
-    const textY =
-      (canvas.height * text.position.y) / 100 + (text.translationY || 0);
-
-    // Translate to the text position for rotation
-    ctx.translate(textX, textY);
-
-    // Apply rotation (convert degrees to radians)
-    ctx.rotate((text.rotation * Math.PI) / 180);
-
-    // Set text properties
-    const fontStyle = text.isItalic ? "italic " : "";
-    const fontWeight = text.isBold ? "bold " : "";
-    const fontFamilyName = text.fontFamily.includes("-")
-      ? `"${text.fontFamily}"`
-      : text.fontFamily;
-
-    ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${fontFamilyName}, sans-serif`;
-    ctx.fillStyle = text.color;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
-
-    // Apply letter spacing if needed
-    if (text.spacing !== 0) {
-      // Draw each character separately with spacing
-      const chars = text.text.split("");
-      let totalWidth = 0;
-
-      // First calculate total width with spacing
-      for (let i = 0; i < chars.length; i++) {
-        const charWidth = ctx.measureText(chars[i]).width;
-        totalWidth += charWidth + (i < chars.length - 1 ? text.spacing : 0);
-      }
-
-      // Start position (centered)
-      let xPos = -totalWidth / 2;
-
-      // Draw each character
-      for (let i = 0; i < chars.length; i++) {
-        const charWidth = ctx.measureText(chars[i]).width;
-        ctx.fillText(chars[i], xPos + charWidth / 2, 0);
-        xPos += charWidth + text.spacing;
-      }
-    } else {
-      // Draw text normally if no spacing
-      ctx.fillText(text.text, 0, 0);
-    }
-
-    // Restore the context to draw the rectangle in the correct position
-    ctx.restore();
-
-    // Draw selection rectangle and controls separately (after text is drawn)
-    const textRect = calculateTextRect(canvas, text);
-    if (textRect) {
-      const isDraggingThisText =
-        isDraggingText &&
-        (text.id === draggedTextId ||
-          (draggedTextId === null && text === textOverlay));
-
-      if (isDraggingThisText || text.isSelected) {
-        // Draw a more prominent bounding box when dragging or selected
-        ctx.strokeStyle = "#3b82f6"; // Blue
-        ctx.lineWidth = 2;
-        ctx.setLineDash([]);
-        ctx.strokeRect(textRect.x, textRect.y, textRect.width, textRect.height);
-
-        // Draw control points
-        ctx.fillStyle = "#3b82f6";
-        const handleSize = 6;
-
-        // Draw handles at corners
-        [
-          { x: textRect.x, y: textRect.y }, // Top-left
-          { x: textRect.x + textRect.width, y: textRect.y }, // Top-right
-          { x: textRect.x, y: textRect.y + textRect.height }, // Bottom-left
-          { x: textRect.x + textRect.width, y: textRect.y + textRect.height }, // Bottom-right
-        ].forEach((point) => {
-          ctx.fillRect(
-            point.x - handleSize / 2,
-            point.y - handleSize / 2,
-            handleSize,
-            handleSize
-          );
-        });
-
-        // Draw delete button when selected (not dragging)
-        if (text.isSelected && !isDraggingThisText) {
-          // Draw delete button at top right
-          ctx.fillStyle = "#ef4444"; // Red
-          ctx.beginPath();
-          ctx.arc(textRect.x + textRect.width, textRect.y, 10, 0, Math.PI * 2);
-          ctx.fill();
-
-          // Draw X in delete button
-          ctx.strokeStyle = "#ffffff";
-          ctx.lineWidth = 2;
-          ctx.setLineDash([]);
-          ctx.beginPath();
-          ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
-          ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
-          ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
-          ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
-          ctx.stroke();
-        }
-      } else if (
-        mouseX >= textRect.x &&
-        mouseX <= textRect.x + textRect.width &&
-        mouseY >= textRect.y &&
-        mouseY <= textRect.y + textRect.height
-      ) {
-        // Draw a subtle bounding box when hovering
-        ctx.strokeStyle = "#9ca3af"; // Gray
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.strokeRect(textRect.x, textRect.y, textRect.width, textRect.height);
-        ctx.setLineDash([]);
-      }
-    }
-  };
-
-  // Replace the debounced renderCanvas with a more efficient approach
+  // Re-render canvas when relevant state changes - with optimized dependencies
   useEffect(() => {
-    // Use requestAnimationFrame for smoother rendering
-    let animationFrameId: number;
+    // Set the flag to trigger a render on the next animation frame
+    shouldRenderRef.current = true;
 
-    const performRender = () => {
-      renderCanvas();
-      animationFrameId = requestAnimationFrame(performRender);
-    };
-
-    // Start the render loop
-    animationFrameId = requestAnimationFrame(performRender);
-
-    // Clean up
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-    };
-  }, [renderCanvas]);
-
-  // Force a complete render of the canvas
-
-  // Add a function to prepare the canvas for export
-
-  // Re-render canvas when relevant state changes
-  useEffect(() => {
-    // Debounce the render to prevent too many consecutive renders
-    const debounceTimeout = setTimeout(() => {
-      renderCanvas();
-    }, 50);
-
-    return () => {
-      clearTimeout(debounceTimeout);
-    };
+    // Batch renders by using requestAnimationFrame
+    requestAnimationFrame(() => {
+      if (shouldRenderRef.current) {
+        renderCanvas();
+        shouldRenderRef.current = false;
+      }
+    });
   }, [
     renderCanvas,
     mainImage,
-    logoImages,
-    logos,
+    logoImages.size,
+    logos.length,
     brightness,
     contrast,
     saturation,
     sepia,
     opacity,
     hoveredLogoId,
-    textOverlay,
-    textOverlays,
+    textOverlay.isVisible,
+    textOverlay.text,
+    textOverlays.length,
     textPosition,
   ]);
+
+  // Force a complete render of the canvas
+
+  // Add a function to prepare the canvas for export
 
   // Handle mouse down event
   const handleMouseDown = useCallback(
@@ -1091,10 +1113,15 @@ const ImageRender = () => {
     ]
   );
 
-  // Handle mouse move event
+  // Throttled handler for mouse move to reduce re-renders
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!canvasRef.current) return;
+
+      // Throttle mouse move rendering to maximum 30fps (33ms)
+      const now = Date.now();
+      const throttleMs = 33;
+      const shouldThrottle = now - lastRenderTimeRef.current < throttleMs;
 
       const canvas = canvasRef.current;
       const rect = canvas.getBoundingClientRect();
@@ -1104,9 +1131,19 @@ const ImageRender = () => {
       const currentMouseX = (e.clientX - rect.left) * scaleX;
       const currentMouseY = (e.clientY - rect.top) * scaleY;
 
-      // Update mouse position state
+      // Always update mouse position for tracking
       setMouseX(currentMouseX);
       setMouseY(currentMouseY);
+
+      // For operations that need continuous updates like dragging, don't throttle
+      const needsContinuousUpdate =
+        isDragging || isResizing || isDraggingText || isResizingCorner;
+
+      if (shouldThrottle && !needsContinuousUpdate) {
+        return; // Skip this update if we should throttle
+      }
+
+      lastRenderTimeRef.current = now;
 
       // Get image boundaries for constraint
       const imageBounds = calculateImageBounds();
@@ -1826,6 +1863,23 @@ const ImageRender = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Add resize observer in a separate effect
+  useEffect(() => {
+    // Register a single resize observer to handle window resize events
+    const resizeObserver = new ResizeObserver(() => {
+      shouldRenderRef.current = true;
+      renderCanvas();
+    });
+
+    if (canvasRef.current) {
+      resizeObserver.observe(canvasRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [canvasRef, renderCanvas]);
+
   return (
     <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
       <div
@@ -1931,6 +1985,6 @@ const ImageRender = () => {
       />
     </div>
   );
-};
+});
 
 export default ImageRender;

@@ -14,8 +14,8 @@ import LogoDesigns from "./Toolbar components/logoDesign";
 import TypographyDesigns from "./Toolbar components/typographyDesigns";
 import ImageUploader from "./Toolbar components/imageUploader";
 import AspectRatioControls from "./Toolbar components/aspectRatioControls";
-import PresetBuilder from "./Toolbar components/presetBuilder";
 import SelectionControls from "./Toolbar components/selectionControls";
+import PresetBuilder from "./Toolbar components/filterBuilder";
 
 const ToolBar = () => {
   const {
