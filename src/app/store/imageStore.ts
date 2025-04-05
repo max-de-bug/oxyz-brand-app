@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 import { apiClient } from "@/lib/api-client";
 import { usePresetStore } from "@/app/store/presetStore";
+import { useDesignStore } from "./designStore";
 
 // Define interfaces
 export interface SavedImage {
@@ -97,7 +98,6 @@ export const useImageStore = create<ImageState>((set, get) => ({
   clearMainImage: () => {
     // Get the preset store actions
     const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
-
     // Clear everything in one action
     set({
       imageUrl: null,

@@ -1,374 +1,387 @@
 "use client";
-import { Button } from "@/components/ui/button";
-import { RefreshCcw, Save, Share, Copy, Loader2 } from "lucide-react";
-import AuthButton from "../authButton";
-import { useState } from "react";
-import { captureVisibleCanvas } from "./exportControls";
-import { useDesignStore } from "@/app/store/designStore";
-import { useImageStore } from "@/app/store/imageStore";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/app/store/auth-context";
-import { useUploadImage } from "@/lib/api/queries";
+import {
+  LogOut,
+  User,
+  Settings,
+  Edit,
+  Check,
+  X,
+  Loader2,
+  ChevronDown,
+} from "lucide-react";
+import Link from "next/link";
+import { useState, useRef, useEffect } from "react";
+import {
+  useUserProfile,
+  useUpdateUsername,
+  useDefaultUserImage,
+} from "@/lib/api/queries";
+import { useToast } from "@/hooks/use-toast";
+import Image from "next/image";
+import { motion, AnimatePresence } from "framer-motion";
 
 const HeaderControls = () => {
-  const [isSharing, setIsSharing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isCopying, setIsCopying] = useState(false);
-  const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
+  const { user, signOut } = useAuth();
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isEditingUsername, setIsEditingUsername] = useState(false);
+  const [newUsername, setNewUsername] = useState("");
+  const usernameInputRef = useRef<HTMLInputElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { session } = useAuth();
 
-  // Access stores for image and design state
-  const { imageUrl, setImage } = useImageStore();
-  const { textOverlay, currentDesignId, setCurrentDesignId } = useDesignStore();
+  // Fetch user profile using React Query
+  const {
+    data: userProfile,
+    isLoading: isLoadingProfile,
+    isError: isProfileError,
+  } = useUserProfile();
 
-  // Use the upload image mutation from React Query
-  const uploadImageMutation = useUploadImage();
+  // Fetch default user image
+  const { data: defaultUserImage, isLoading: isLoadingDefaultImage } =
+    useDefaultUserImage();
 
-  const handleSave = async () => {
-    // Check if user is authenticated
-    if (!session) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to save designs",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return null;
-    }
+  // Use the update username mutation
+  const updateUsernameMutation = useUpdateUsername();
 
-    // Check if there's an image to save
-    if (!imageUrl) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Please add an image to save a design",
-        duration: 3000,
-      });
-      return null;
-    }
-
-    setIsSaving(true);
-    try {
-      // Capture canvas as image using the imported function
-      const capturedImage = await captureVisibleCanvas();
-
-      if (!capturedImage) {
-        throw new Error("Failed to capture canvas");
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
       }
+    };
 
-      // Convert base64 to blob for upload
-      const fetchResponse = await fetch(capturedImage);
-      const blob = await fetchResponse.blob();
-
-      // Create a File object from the blob
-      const fileName = `design_${Date.now()}.png`;
-      const fileToUpload = new File([blob], fileName, { type: "image/png" });
-
-      // Upload the image using the mutation
-      const uploadedImage = await uploadImageMutation.mutateAsync(fileToUpload);
-
-      // Check if the upload was successful and we have a URL
-      if (uploadedImage?.url) {
-        // Store the URL from the server (not the data URL)
-        setSavedImageUrl(uploadedImage.url);
-
-        toast({
-          title: "Success",
-          description: "Design saved to your library!",
-          duration: 3000,
-        });
-
-        return uploadedImage.url;
-      } else {
-        throw new Error("Upload successful but no URL was returned");
+    // Close on escape key
+    const handleEscKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsUserMenuOpen(false);
       }
-    } catch (error) {
-      console.error("Error saving design:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to save design. Please try again.",
-        duration: 3000,
-      });
-      return null;
-    } finally {
-      setIsSaving(false);
-    }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscKey);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscKey);
+    };
+  }, []);
+
+  // Get display name from user profile or fallback to email
+  const getDisplayName = () => {
+    if (userProfile?.name) return userProfile.name;
+    if (userProfile?.email) return userProfile.email.split("@")[0];
+    if (user?.email) return user.email.split("@")[0];
+    return "Guest";
   };
 
-  // Function to copy image to clipboard
-  const copyImageToClipboard = async () => {
-    setIsCopying(true);
-    try {
-      // Check if there's content to copy
-      if (!imageUrl) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Please add an image to the canvas first",
-          duration: 3000,
-        });
-        return false;
-      }
+  const displayName = getDisplayName();
 
-      // Capture the canvas
-      const capturedImage = await captureVisibleCanvas();
-      if (!capturedImage) {
-        throw new Error("Failed to capture canvas");
-      }
+  // Get profile image - prioritize user profile image, fall back to default
+  const getProfileImage = () => {
+    if (userProfile?.image) return userProfile.image;
+    if (defaultUserImage?.url) return defaultUserImage.url;
+    return null;
+  };
 
-      // Convert base64 to blob for clipboard
-      const fetchResponse = await fetch(capturedImage);
-      const blob = await fetchResponse.blob();
+  const profileImage = getProfileImage();
 
+  const startEditingUsername = () => {
+    setNewUsername(displayName);
+    setIsEditingUsername(true);
+    setTimeout(() => {
+      usernameInputRef.current?.focus();
+      usernameInputRef.current?.select();
+    }, 50);
+  };
+
+  const cancelEditingUsername = () => {
+    setIsEditingUsername(false);
+  };
+
+  const saveUsername = async () => {
+    if (!newUsername || newUsername.trim() === "") {
+      toast({
+        variant: "destructive",
+        title: "Invalid Username",
+        description: "Username cannot be empty.",
+      });
+      return;
+    }
+
+    if (newUsername && newUsername !== displayName) {
       try {
-        // Try using the modern Clipboard API
-        const clipboardItem = new ClipboardItem({
-          "image/png": blob,
-        });
-
-        await navigator.clipboard.write([clipboardItem]);
-
+        await updateUsernameMutation.mutateAsync(newUsername);
+        setIsEditingUsername(false);
         toast({
-          title: "Success",
-          description: "Design copied to clipboard!",
-          duration: 3000,
+          title: "Username updated",
+          description: "Your username has been successfully updated.",
         });
-
-        return true;
-      } catch (clipboardError) {
-        console.error("Clipboard API error:", clipboardError);
-
-        // Fallback method - create a temporary image element
-        const img = document.createElement("img");
-        img.src = capturedImage;
-
-        // Try to use deprecated execCommand as fallback
-        const tempContainer = document.createElement("div");
-        tempContainer.appendChild(img);
-        tempContainer.setAttribute("contenteditable", "true");
-        tempContainer.style.position = "fixed";
-        tempContainer.style.opacity = "0";
-        document.body.appendChild(tempContainer);
-
-        // Select the content
-        const range = document.createRange();
-        range.selectNodeContents(tempContainer);
-        const selection = window.getSelection();
-        selection?.removeAllRanges();
-        selection?.addRange(range);
-
-        // Execute copy command
-        const success = document.execCommand("copy");
-        document.body.removeChild(tempContainer);
-
-        if (success) {
-          toast({
-            title: "Success",
-            description: "Design copied to clipboard (fallback method)!",
-            duration: 3000,
-          });
-          return true;
-        } else {
-          throw new Error(
-            "Clipboard copying failed. Please try downloading instead."
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Error copying design to clipboard:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description:
-          typeof error === "object" && error !== null && "message" in error
-            ? String(error.message)
-            : "Failed to copy design to clipboard. Try a different browser.",
-        duration: 5000,
-      });
-      return false;
-    } finally {
-      setIsCopying(false);
-    }
-  };
-
-  const handleShare = async () => {
-    try {
-      // Check if there's content to share
-      if (!imageUrl) {
+      } catch (error) {
+        console.error("Failed to update username:", error);
         toast({
           variant: "destructive",
-          title: "Error",
-          description: "Please add an image to the canvas before sharing",
-          duration: 3000,
+          title: "Update Failed",
+          description: "Could not update your username. Please try again.",
         });
-        return;
       }
-
-      setIsSharing(true);
-
-      // First try to copy the image to clipboard
-      const copied = await copyImageToClipboard();
-
-      // Open Twitter compose window
-      const tweetText = copied
-        ? "Check out my design created with OXYZ Media App! 🎨\n\nYour image has been copied to clipboard - just paste (Ctrl+V) it into your tweet!"
-        : "Check out my design created with OXYZ Media App! 🎨";
-
-      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-        tweetText
-      )}`;
-
-      // Open Twitter in a new window
-      window.open(tweetUrl, "_blank");
-
-      toast({
-        title: "Ready to share!",
-        description: copied
-          ? "Your design is in your clipboard! Paste it into your tweet (Ctrl+V or Cmd+V)."
-          : "Twitter opened in a new window. You might need to download and attach the image manually.",
-        duration: 5000,
-      });
-    } catch (error) {
-      console.error("Error sharing to Twitter:", error);
-      toast({
-        title: "Share failed",
-        description:
-          "There was an error preparing your design for sharing. Please try again.",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsSharing(false);
+    } else {
+      setIsEditingUsername(false);
     }
   };
 
-  // Handle resetting the canvas
-  const handleReset = () => {
-    // Confirm reset with the user
-    if (
-      window.confirm(
-        "Are you sure you want to reset the canvas? This will clear all your changes."
-      )
-    ) {
-      // Clear current design ID
-      setCurrentDesignId(null);
-
-      // Clear main image
-      useImageStore.getState().clearMainImage();
-
-      // Clear logos
-      useImageStore.getState().clearLogos();
-
-      // Reset filters
-      useImageStore.getState().setFilter({
-        brightness: 100,
-        contrast: 100,
-        saturation: 100,
-        sepia: 0,
-        opacity: 100,
-      });
-
-      // Clear text
-      useDesignStore.getState().setTextOverlay({
-        text: "",
-        isVisible: false,
-        color: "#000000",
-        fontFamily: "Arial",
-        fontSize: 24,
-        isBold: false,
-        isItalic: false,
-        rotation: 0,
-        spacing: 0,
-        translationX: 0,
-        translationY: 0,
-        isSelected: false,
-      });
-
-      // Reset savedImageUrl state
-      setSavedImageUrl(null);
-
-      toast({
-        title: "Reset complete",
-        description: "Canvas has been reset to default state.",
-        duration: 3000,
-      });
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      saveUsername();
+    } else if (e.key === "Escape") {
+      cancelEditingUsername();
     }
+  };
+
+  // Get the first initial for the avatar
+  const getInitial = () => {
+    if (displayName && displayName.length > 0) {
+      return displayName.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  // Render avatar content with proper loading states
+  const renderAvatarContent = (size: "small" | "large") => {
+    const isLoading = isLoadingProfile || isLoadingDefaultImage;
+
+    if (isLoading) {
+      return (
+        <Loader2
+          size={size === "small" ? 14 : 18}
+          className="animate-spin text-white/80"
+        />
+      );
+    }
+
+    if (profileImage) {
+      return (
+        <div className="w-full h-full relative rounded-full overflow-hidden">
+          <Image
+            src={profileImage}
+            alt={displayName}
+            fill
+            sizes={size === "small" ? "30px" : "40px"}
+            className="object-cover"
+            priority={true}
+          />
+        </div>
+      );
+    }
+
+    return getInitial();
+  };
+
+  const dropdownVariants = {
+    hidden: {
+      opacity: 0,
+      y: -5,
+      scale: 0.98,
+      transition: { duration: 0.15, ease: "easeInOut" },
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: {
+        duration: 0.2,
+        ease: "easeOut",
+        staggerChildren: 0.05,
+      },
+    },
+    exit: {
+      opacity: 0,
+      y: -5,
+      scale: 0.98,
+      transition: { duration: 0.15, ease: "easeInOut" },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, x: -10 },
+    visible: { opacity: 1, x: 0 },
   };
 
   return (
-    <div className="my-4 hidden lg:block w-full">
-      <div className="grid gap-4">
-        <div className="grid grid-cols-3 gap-4">
-          <Button
-            className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-4 py-3 rounded-lg flex items-center justify-center gap-2"
-            onClick={handleReset}
-          >
-            <RefreshCcw className="w-4 h-4" />
-            Reset
-          </Button>
-          <Button
-            className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-6 py-3 rounded-lg flex items-center justify-center gap-2"
-            onClick={handleSave}
-            disabled={isSaving || !imageUrl}
-          >
-            {isSaving || uploadImageMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4" />
-            )}
-            {isSaving || uploadImageMutation.isPending ? "Saving..." : "Save"}
-          </Button>
-          <Button
-            className="bg-neutral-800 hover:bg-neutral-700 text-white text-xs px-6 py-3 rounded-lg flex items-center justify-center gap-2"
-            onClick={handleShare}
-            disabled={
-              isSharing ||
-              isCopying ||
-              uploadImageMutation.isPending ||
-              !imageUrl
-            }
-          >
-            {isSharing || isCopying ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Share className="w-4 h-4" />
-            )}
-            {isSharing ? "Sharing..." : isCopying ? "Copying..." : "Share"}
-          </Button>
-        </div>
-
-        <div className="w-full flex justify-center">
-          <AuthButton />
-        </div>
-
-        {/* Show success message with image thumbnail when saved */}
-        {savedImageUrl && (
-          <div className="mt-2 text-center">
-            <p className="text-sm text-green-500 mb-1">
-              Design saved to your library!
-            </p>
-            <div className="inline-block w-16 h-16 relative border border-gray-200 rounded overflow-hidden">
-              <img
-                src={savedImageUrl}
-                alt="Saved design"
-                className="w-full h-full object-cover"
-              />
-            </div>
+    <header className="w-full flex justify-end px-6 py-4 sticky top-0 z-40 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-neutral-100 dark:border-neutral-800">
+      <div className="relative" ref={userMenuRef}>
+        <button
+          onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+          className="flex items-center gap-2 px-3 py-2 rounded-full bg-transparent hover:bg-black/5 dark:hover:bg-white/10 transition-all duration-200 group"
+          aria-expanded={isUserMenuOpen}
+          aria-haspopup="true"
+          aria-label="User menu"
+        >
+          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-medium overflow-hidden ring-2 ring-white/10 dark:ring-black/10 group-hover:ring-white/20 dark:group-hover:ring-black/20 transition-all">
+            {renderAvatarContent("small")}
           </div>
-        )}
+          <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 max-w-[120px] truncate hidden sm:inline-block">
+            {isLoadingProfile ? "Loading..." : displayName}
+          </span>
+          <ChevronDown
+            size={16}
+            className={`text-neutral-400 transition-transform duration-200 ${
+              isUserMenuOpen ? "rotate-180" : ""
+            }`}
+          />
+        </button>
 
-        {/* Show error message */}
-        {uploadImageMutation.isError && (
-          <div className="mt-2 text-center text-sm text-red-500">
-            {uploadImageMutation.error instanceof Error
-              ? uploadImageMutation.error.message
-              : "Failed to save design"}
-          </div>
-        )}
+        <AnimatePresence>
+          {isUserMenuOpen && (
+            <motion.div
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              variants={dropdownVariants}
+              className="absolute right-0 mt-2 w-72 rounded-xl shadow-lg bg-white dark:bg-neutral-900 border border-neutral-100 dark:border-neutral-800 z-50 overflow-hidden"
+            >
+              <div className="p-4 border-b border-neutral-100 dark:border-neutral-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold overflow-hidden shadow-md">
+                    {renderAvatarContent("large")}
+                  </div>
+
+                  {isEditingUsername ? (
+                    <div className="flex flex-col gap-2 flex-grow">
+                      <div className="relative">
+                        <input
+                          ref={usernameInputRef}
+                          type="text"
+                          value={newUsername}
+                          onChange={(e) => setNewUsername(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-md px-3 py-2 text-sm text-neutral-800 dark:text-neutral-200 w-full pr-8 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 transition-all"
+                          maxLength={20}
+                          disabled={updateUsernameMutation.isPending}
+                          placeholder="Enter username"
+                          aria-label="Edit username"
+                        />
+                        {updateUsernameMutation.isPending && (
+                          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
+                            <Loader2
+                              size={16}
+                              className="animate-spin text-neutral-400"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={saveUsername}
+                          className="flex-1 text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          disabled={updateUsernameMutation.isPending}
+                          aria-label="Save username"
+                        >
+                          <Check size={14} />
+                          <span>Save</span>
+                        </button>
+                        <button
+                          onClick={cancelEditingUsername}
+                          className="flex-1 text-neutral-600 dark:text-neutral-300 bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1"
+                          disabled={updateUsernameMutation.isPending}
+                          aria-label="Cancel editing"
+                        >
+                          <X size={14} />
+                          <span>Cancel</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-1.5">
+                        <h3 className="text-base font-medium text-neutral-800 dark:text-neutral-200">
+                          {isLoadingProfile ? "Loading..." : displayName}
+                        </h3>
+                        {user && !isLoadingProfile && (
+                          <button
+                            onClick={startEditingUsername}
+                            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors bg-transparent hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-full p-1"
+                            title="Edit username"
+                            aria-label="Edit username"
+                          >
+                            <Edit size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {!isLoadingProfile && userProfile?.email && (
+                        <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
+                          {userProfile.email}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {isProfileError && (
+                  <div className="mt-2 text-xs text-red-500 bg-red-50 dark:bg-red-900/20 p-2 rounded-md">
+                    Error loading profile. Please refresh and try again.
+                  </div>
+                )}
+              </div>
+
+              <motion.div
+                className="py-2"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                    },
+                  },
+                }}
+              >
+                <motion.button
+                  variants={itemVariants}
+                  className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2.5 transition-colors"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                  }}
+                  aria-label="Settings"
+                >
+                  <Settings size={16} className="text-neutral-500" />
+                  <span>Settings</span>
+                </motion.button>
+
+                {user ? (
+                  <motion.button
+                    variants={itemVariants}
+                    onClick={() => {
+                      signOut();
+                      setIsUserMenuOpen(false);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2.5 transition-colors"
+                    aria-label="Sign out"
+                  >
+                    <LogOut size={16} className="text-neutral-500" />
+                    <span>Sign Out</span>
+                  </motion.button>
+                ) : (
+                  <motion.div variants={itemVariants}>
+                    <Link
+                      href="/signin"
+                      className="block w-full text-left px-4 py-2.5 text-sm text-neutral-700 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800 flex items-center gap-2.5 transition-colors"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      aria-label="Sign in"
+                    >
+                      <User size={16} className="text-neutral-500" />
+                      <span>Sign In</span>
+                    </Link>
+                  </motion.div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    </div>
+    </header>
   );
 };
 

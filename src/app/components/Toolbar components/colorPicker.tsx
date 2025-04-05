@@ -1,5 +1,7 @@
 "use client";
 import { FC } from "react";
+import { Copy, Check } from "lucide-react";
+import { useState } from "react";
 
 interface ColorPickerProps {
   colorValue: string;
@@ -7,49 +9,90 @@ interface ColorPickerProps {
 }
 
 const ColorPicker: FC<ColorPickerProps> = ({ colorValue, setColorValue }) => {
-  // Color presets
+  const [copiedColor, setCopiedColor] = useState<string | null>(null);
+
+  // O.XYZ modern color palette
   const colorPresets = [
-    { title: "Black", color: "rgb(0, 0, 0)" },
-    { title: "Gray", color: "rgb(17, 17, 17)" },
-    { title: "Gray (2)", color: "rgb(34, 34, 34)" },
-    { title: "Gray (3)", color: "rgb(142, 142, 147)" },
-    { title: "Gray (4)", color: "rgb(174, 174, 178)" },
-    { title: "Gray (5)", color: "rgb(199, 199, 204)" },
-    { title: "Gray (6)", color: "rgb(209, 209, 214)" },
-    { title: "Gray (7)", color: "rgb(229, 229, 234)" },
-    { title: "Gray (8)", color: "rgb(242, 242, 247)" },
-    { title: "White", color: "rgb(255, 255, 255)" },
-    { title: "Red", color: "rgb(255, 59, 48)" },
-    { title: "Orange", color: "rgb(255, 149, 0)" },
-    { title: "Yellow", color: "rgb(255, 204, 0)" },
-    { title: "Green", color: "rgb(52, 199, 89)" },
-    { title: "Mint", color: "rgb(0, 199, 190)" },
-    { title: "Teal", color: "rgb(48, 176, 199)" },
-    { title: "Cyan", color: "rgb(50, 173, 230)" },
-    { title: "Blue", color: "rgb(0, 122, 255)" },
-    { title: "Indigo", color: "rgb(88, 86, 214)" },
-    { title: "Purple", color: "rgb(175, 82, 222)" },
-    { title: "Pink", color: "rgb(255, 45, 85)" },
+    // Dark tones
+    { title: "Black", color: "#050505" },
+    { title: "Dark Gray", color: "#1a1a1a" },
+    { title: "Charcoal", color: "#2a2a2a" },
+
+    // Blue tones (primary brand colors)
+    { title: "Deep Blue", color: "#0b2b4f" },
+    { title: "Electric Blue", color: "#0066ff" },
+    { title: "Bright Blue", color: "#44aaff" },
+
+    // Purple tones
+    { title: "Deep Purple", color: "#2d0f6a" },
+    { title: "Electric Purple", color: "#7b2fff" },
+    { title: "Bright Purple", color: "#a570ff" },
+
+    // Gradient starting points
+    { title: "Neon Pink", color: "#ff2a6a" },
+    { title: "Neon Blue", color: "#00aaff" },
+    { title: "Neon Green", color: "#3aff8c" },
+    { title: "Neon Yellow", color: "#fff75e" },
+
+    // Neutral tones
+    { title: "White", color: "#ffffff" },
+    { title: "Light Gray", color: "#dadce0" },
+    { title: "Medium Gray", color: "#9aa0a6" },
   ];
+
+  const copyToClipboard = (color: string) => {
+    navigator.clipboard.writeText(color);
+    setCopiedColor(color);
+    setTimeout(() => setCopiedColor(null), 1500);
+  };
 
   return (
     <div className="grid gap-4">
-      <input
-        type="color"
-        className="w-full p-1 px-1 h-10 block bg-white border border-neutral-200 cursor-pointer rounded-lg disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700"
-        value={colorValue}
-        onChange={(e) => setColorValue(e.target.value)}
-      />
-      <div className="flex flex-wrap gap-2">
-        {colorPresets.map((preset) => (
+      <div className="relative">
+        <div className="flex items-center bg-[#171717] rounded-md overflow-hidden border border-[#333333]">
+          <div
+            className="w-10 h-10 flex-shrink-0"
+            style={{ backgroundColor: colorValue }}
+          />
+          <input
+            type="text"
+            className="w-full bg-transparent border-none outline-none px-3 py-2 text-sm text-white font-mono"
+            value={colorValue}
+            onChange={(e) => setColorValue(e.target.value)}
+          />
           <button
-            key={preset.title}
-            className="w-4 h-4 rounded focus:outline-none ring-1 ring-neutral-100 dark:ring-neutral-500 focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-blue-500"
-            title={preset.title}
-            style={{ backgroundColor: preset.color }}
-            onClick={() => setColorValue(preset.color)}
-          ></button>
-        ))}
+            onClick={() => copyToClipboard(colorValue)}
+            className="px-3 py-2 opacity-60 hover:opacity-100 transition-opacity"
+            title="Copy color code"
+          >
+            {copiedColor === colorValue ? (
+              <Check size={16} className="text-green-500" />
+            ) : (
+              <Copy size={16} className="text-white" />
+            )}
+          </button>
+        </div>
+        <input
+          type="color"
+          className="absolute top-0 right-4 transform translate-y-1/3 w-5 h-5 opacity-0 cursor-pointer"
+          value={colorValue}
+          onChange={(e) => setColorValue(e.target.value)}
+        />
+      </div>
+
+      <div className="bg-[#171717] p-3 rounded-md border border-[#333333]">
+        <div className="mb-2 text-xs text-[#888888]">Color Presets</div>
+        <div className="grid grid-cols-8 gap-2">
+          {colorPresets.map((preset) => (
+            <button
+              key={preset.title}
+              className="w-6 h-6 rounded-full focus:outline-none ring-1 ring-white/10 transition-transform hover:scale-110 hover:ring-white/30 focus:ring-2 focus:ring-blue-500"
+              title={preset.title}
+              style={{ backgroundColor: preset.color }}
+              onClick={() => setColorValue(preset.color)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

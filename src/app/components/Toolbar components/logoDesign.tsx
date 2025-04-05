@@ -139,11 +139,17 @@ const LogoDesigns = () => {
       return (
         <div
           key={logo.id}
-          className={`relative p-2 border rounded transition-all cursor-pointer
+          className={`relative p-3 border rounded transition-all cursor-pointer w-[160px] h-[180px] flex flex-col
           ${
-            selectedLogo?.id === logo.id ? "border-blue-500" : "border-gray-200"
+            selectedLogo?.id === logo.id
+              ? "border-blue-500"
+              : "border-gray-200 dark:border-gray-700"
           }
-          ${logo.isDefault ? "bg-blue-50" : ""}
+          ${
+            logo.isDefault
+              ? "bg-blue-50 dark:bg-blue-900/20"
+              : "bg-white dark:bg-gray-800"
+          }
           ${!isOnCanvas ? "hover:border-blue-300 hover:shadow-md" : ""}
         `}
           onClick={() => handleLogoClick(logo)}
@@ -162,15 +168,22 @@ const LogoDesigns = () => {
               <Trash2 size={14} />
             </button>
           </div>
-          <div className="flex justify-center p-2 bg-gray-50 rounded group">
+          <div className="flex justify-center items-center h-[100px] w-full bg-gray-50 dark:bg-gray-900 rounded group overflow-hidden flex-grow mb-2">
             <img
               src={logoUrl}
               alt={logo.filename || "Logo"}
-              className="object-contain max-h-24 transition-transform group-hover:scale-105"
-              style={{ maxWidth: "100%" }}
+              className="object-contain max-h-[90px] max-w-[90%] transition-transform group-hover:scale-105"
+              loading="lazy"
+              onError={(e) => {
+                // Set a default image or add a visual indicator that image failed to load
+                (e.target as HTMLImageElement).src = "/logo.jpg";
+              }}
             />
           </div>
-          <div className="flex gap-1 mt-2" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="flex gap-1 mt-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -180,7 +193,7 @@ const LogoDesigns = () => {
               ${
                 isOnCanvas
                   ? "bg-blue-500 hover:bg-blue-600 text-white"
-                  : "bg-gray-800 hover:bg-gray-700"
+                  : "bg-gray-800 hover:bg-gray-700 text-white"
               }`}
             >
               {isOnCanvas ? (
@@ -212,8 +225,9 @@ const LogoDesigns = () => {
         <h2 className="text-lg font-semibold">Logo Designs</h2>
         <button
           onClick={() => refetchLogos()}
-          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-600"
+          className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 rounded hover:bg-gray-600 text-white"
           disabled={loading}
+          aria-label="Refresh logos"
         >
           {loading ? (
             <Loader2 size={16} className="animate-spin" />
@@ -224,7 +238,8 @@ const LogoDesigns = () => {
       </div>
 
       {error && (
-        <div className="p-2 mb-4 text-sm text-red-700 bg-red-100 rounded">
+        <div className="p-3 mb-4 text-sm text-red-700 bg-red-100 dark:bg-red-900/20 dark:text-red-300 rounded-md flex items-center gap-2">
+          <span className="font-medium">Error:</span>{" "}
           {error.message || String(error)}
         </div>
       )}
@@ -266,8 +281,11 @@ const LogoDesigns = () => {
 
       {/* Updated Logo Grid with Carousel */}
       {loading ? (
-        <div className="flex justify-center py-8">
-          <Loader2 className="animate-spin" />
+        <div className="flex justify-center items-center py-12 min-h-[200px]">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={24} className="animate-spin text-blue-500" />
+            <p className="text-sm text-gray-500">Loading logos...</p>
+          </div>
         </div>
       ) : (
         <div className="mt-6">
@@ -279,7 +297,7 @@ const LogoDesigns = () => {
               <Carousel
                 items={displayLogos.map((logo: any) => renderLogoCard(logo))}
                 itemsPerView={2}
-                spacing={16}
+                spacing={24}
                 className="py-3"
               />
             </>
@@ -295,7 +313,7 @@ const LogoDesigns = () => {
         <div className="mt-4 text-center">
           <button
             onClick={loadMoreCloudinaryLogos}
-            className="px-4 py-2 text-sm bg-gray-800 rounded hover:bg-gray-700"
+            className="px-4 py-2 text-sm bg-gray-800 rounded hover:bg-gray-700 text-white transition-colors"
             disabled={loading}
           >
             {loading ? (

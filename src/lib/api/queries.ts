@@ -10,6 +10,15 @@ import { useImageStore } from "@/app/store/imageStore";
 import { Logo } from "@/app/services/logos.service";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "@/hooks/use-toast";
+import { Filter, FilterValues } from "@/app/store/filterStore";
+// Default user image type
+export interface DefaultUserImage {
+  url: string;
+  publicId: string;
+  width: number;
+  height: number;
+}
+
 // User queries
 export interface UserProfile {
   id: string;
@@ -35,6 +44,27 @@ export function useUserProfile() {
     retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+  });
+}
+
+// Query hook for fetching default user image
+export function useDefaultUserImage() {
+  return useQuery<DefaultUserImage>({
+    queryKey: ["user", "defaults", "image"],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<DefaultUserImage>(
+          "/users/defaults/image"
+        );
+        return response;
+      } catch (error) {
+        console.error("Error fetching default user image:", error);
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
+    retry: 2,
   });
 }
 
@@ -141,6 +171,133 @@ export function useCreateDesign() {
     mutationFn: (data: any) => apiClient.post("/designs", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["designs"] });
+    },
+  });
+}
+
+// ========================
+// FILTER QUERIES
+// ========================
+
+export function useFilters() {
+  return useQuery<Filter[]>({
+    queryKey: ["filters"],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<Filter[]>("/filters");
+        return response;
+      } catch (error) {
+        console.error("Error fetching filters:", error);
+        throw error;
+      }
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+  });
+}
+
+export function useFilterById(id: string) {
+  return useQuery<Filter>({
+    queryKey: ["filters", id],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<Filter>(`/filters/${id}`);
+        return response;
+      } catch (error) {
+        console.error(`Error fetching filter with ID ${id}:`, error);
+        throw error;
+      }
+    },
+    enabled: !!id,
+    staleTime: 5 * 60 * 1000, // 5 minutes cache
+    gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+  });
+}
+
+export function useCreateFilter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (filterData: {
+      name: string;
+      filter: FilterValues;
+    }): Promise<Filter> => {
+      try {
+        const response = await apiClient.post<Filter>("/filters", filterData);
+        return response;
+      } catch (error) {
+        console.error("Error creating filter:", error);
+        throw error;
+      }
+    },
+    onSuccess: (newFilter) => {
+      console.log("Mutation succeeded with filter:", newFilter);
+
+      // Update the filters cache with the new filter
+      queryClient.setQueryData<Filter[]>(["filters"], (oldFilters = []) => {
+        return [...oldFilters, newFilter];
+      });
+
+      // Invalidate the filters query to ensure data is fresh
+      queryClient.invalidateQueries({ queryKey: ["filters"] });
+
+      // Show a success toast
+      toast({
+        title: "Success",
+        description: "Filter created successfully",
+      });
+    },
+    onError: (error) => {
+      console.error("Failed to create filter:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to create filter. Please try again.",
+      });
+    },
+    // Ensure the mutation doesn't retry on error
+    retry: 0,
+  });
+}
+
+export function useDeleteFilter() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (filterId: string) => {
+      try {
+        return await apiClient.delete(`/filters/${filterId}`);
+      } catch (error) {
+        console.error(`Error deleting filter with ID ${filterId}:`, error);
+        throw error;
+      }
+    },
+    onMutate: async (filterId) => {
+      // Cancel any outgoing refetches to avoid overwriting our optimistic update
+      await queryClient.cancelQueries({ queryKey: ["filters"] });
+
+      // Snapshot the previous value
+      const previousFilters = queryClient.getQueryData<Filter[]>(["filters"]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData<Filter[]>(["filters"], (old) => {
+        return (old || []).filter((filter) => filter.id !== filterId);
+      });
+
+      return { previousFilters };
+    },
+    onError: (err, filterId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      queryClient.setQueryData(["filters"], context?.previousFilters);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete filter. Please try again.",
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success
+      queryClient.invalidateQueries({ queryKey: ["filters"] });
     },
   });
 }

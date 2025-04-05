@@ -3,6 +3,7 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useImageStore } from "@/app/store/imageStore";
 import { TextOverlay, useDesignStore } from "@/app/store/designStore";
+import { useFilterStore } from "@/app/store/filterStore";
 import { Trash2 } from "lucide-react";
 
 // Add memo wrapper to prevent unnecessary re-renders from parent
@@ -52,6 +53,16 @@ const ImageRender = React.memo(() => {
   // Add state for tracking the dragged text ID
   const [draggedTextId, setDraggedTextId] = useState<string | null>(null);
 
+  // Add these state variables for text resizing
+  const [isResizingText, setIsResizingText] = useState(false);
+  const [resizingTextId, setResizingTextId] = useState<string | null>(null);
+  const [textResizeStartPoint, setTextResizeStartPoint] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [initialFontSize, setInitialFontSize] = useState(0);
+  const [resizeDirection, setResizeDirection] = useState<string | null>(null);
+
   // Get values from the store
   const {
     imageUrl,
@@ -82,6 +93,26 @@ const ImageRender = React.memo(() => {
 
   // Inside the ImageRender component, add this right after your other state declarations
   const { aspectRatio: designStoreAspectRatio } = useDesignStore();
+
+  // Get active filter from filter store
+  const { activeFilter } = useFilterStore();
+
+  // Effect to apply selected filter from filter store when it changes
+  useEffect(() => {
+    if (activeFilter) {
+      console.log("Applying filter from filter store:", activeFilter);
+      // Update image store with filter values
+      const { brightness, contrast, saturation, sepia, opacity } =
+        activeFilter.filter;
+      useImageStore.setState({
+        brightness: brightness || 100,
+        contrast: contrast || 100,
+        saturation: saturation || 100,
+        sepia: sepia || 0,
+        opacity: opacity || 100,
+      });
+    }
+  }, [activeFilter]);
 
   // Add or update this effect for handling aspect ratio when image loads
   useEffect(() => {
@@ -284,8 +315,8 @@ const ImageRender = React.memo(() => {
         return null;
       }
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
         return null;
       }
 
@@ -439,7 +470,7 @@ const ImageRender = React.memo(() => {
     }
   }, [logos]);
 
-  // Helper function to draw a text overlay
+  // Enhance drawTextOverlay to include resize handles
   const drawTextOverlay = useCallback(
     (
       ctx: CanvasRenderingContext2D,
@@ -510,7 +541,12 @@ const ImageRender = React.memo(() => {
           (text.id === draggedTextId ||
             (draggedTextId === null && text === textOverlay));
 
-        if (isDraggingThisText || text.isSelected) {
+        const isResizingThisText =
+          isResizingText &&
+          (text.id === resizingTextId ||
+            (resizingTextId === null && text === textOverlay));
+
+        if (isDraggingThisText || text.isSelected || isResizingThisText) {
           // Draw a more prominent bounding box when dragging or selected
           ctx.strokeStyle = "#3b82f6"; // Blue
           ctx.lineWidth = 2;
@@ -526,23 +562,80 @@ const ImageRender = React.memo(() => {
           ctx.fillStyle = "#3b82f6";
           const handleSize = 6;
 
-          // Draw handles at corners
-          [
-            { x: textRect.x, y: textRect.y }, // Top-left
-            { x: textRect.x + textRect.width, y: textRect.y }, // Top-right
-            { x: textRect.x, y: textRect.y + textRect.height }, // Bottom-left
-            { x: textRect.x + textRect.width, y: textRect.y + textRect.height }, // Bottom-right
-          ].forEach((point) => {
+          // Define handle positions
+          const handles = [
+            {
+              x: textRect.x,
+              y: textRect.y,
+              cursor: "nwse-resize",
+              direction: "topLeft",
+            }, // Top-left
+            {
+              x: textRect.x + textRect.width / 2,
+              y: textRect.y,
+              cursor: "ns-resize",
+              direction: "top",
+            }, // Top-center
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y,
+              cursor: "nesw-resize",
+              direction: "topRight",
+            }, // Top-right
+            {
+              x: textRect.x,
+              y: textRect.y + textRect.height / 2,
+              cursor: "ew-resize",
+              direction: "left",
+            }, // Middle-left
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y + textRect.height / 2,
+              cursor: "ew-resize",
+              direction: "right",
+            }, // Middle-right
+            {
+              x: textRect.x,
+              y: textRect.y + textRect.height,
+              cursor: "nesw-resize",
+              direction: "bottomLeft",
+            }, // Bottom-left
+            {
+              x: textRect.x + textRect.width / 2,
+              y: textRect.y + textRect.height,
+              cursor: "ns-resize",
+              direction: "bottom",
+            }, // Bottom-center
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y + textRect.height,
+              cursor: "nwse-resize",
+              direction: "bottomRight",
+            }, // Bottom-right
+          ];
+
+          // Draw handles and check if mouse is over any handle
+          handles.forEach((handle) => {
             ctx.fillRect(
-              point.x - handleSize / 2,
-              point.y - handleSize / 2,
+              handle.x - handleSize / 2,
+              handle.y - handleSize / 2,
               handleSize,
               handleSize
             );
+
+            // Change cursor if mouse is over a handle
+            if (
+              mouseX >= handle.x - handleSize &&
+              mouseX <= handle.x + handleSize &&
+              mouseY >= handle.y - handleSize &&
+              mouseY <= handle.y + handleSize
+            ) {
+              canvas.style.cursor = handle.cursor;
+            }
           });
 
           // Draw delete button when selected (not dragging)
-          if (text.isSelected && !isDraggingThisText) {
+          if (text.isSelected && !isDraggingThisText && !isResizingThisText) {
             // Draw delete button at top right
             ctx.fillStyle = "#ef4444"; // Red
             ctx.beginPath();
@@ -593,6 +686,8 @@ const ImageRender = React.memo(() => {
       textOverlay,
       mouseX,
       mouseY,
+      isResizingText,
+      resizingTextId,
     ]
   );
 
@@ -703,6 +798,12 @@ const ImageRender = React.memo(() => {
             rect.height
           );
 
+          // Check if this logo is currently being dragged or resized
+          const isCurrentlyDragging = isDragging && draggedLogoId === logo.id;
+          const isCurrentlyResizing = isResizing && draggedLogoId === logo.id;
+          const isCurrentlyResizingCorner =
+            isResizingCorner && draggedLogoId === logo.id;
+
           // Draw outline if logo is selected or hovered
           if (logo.isSelected || hoveredLogoId === logo.id) {
             ctx.strokeStyle = logo.isSelected ? "#3b82f6" : "#9ca3af";
@@ -736,22 +837,29 @@ const ImageRender = React.memo(() => {
               );
             });
 
-            // Draw delete button at top right
-            ctx.fillStyle = "#ef4444";
-            ctx.beginPath();
-            ctx.arc(rect.width / 2, -rect.height / 2, 10, 0, Math.PI * 2);
-            ctx.fill();
+            // Draw delete button at top right, only when not dragging or resizing
+            if (
+              logo.isSelected &&
+              !isCurrentlyDragging &&
+              !isCurrentlyResizing &&
+              !isCurrentlyResizingCorner
+            ) {
+              ctx.fillStyle = "#ef4444";
+              ctx.beginPath();
+              ctx.arc(rect.width / 2, -rect.height / 2, 10, 0, Math.PI * 2);
+              ctx.fill();
 
-            // Draw X in delete button
-            ctx.strokeStyle = "#ffffff";
-            ctx.lineWidth = 2;
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.moveTo(rect.width / 2 - 5, -rect.height / 2 - 5);
-            ctx.lineTo(rect.width / 2 + 5, -rect.height / 2 + 5);
-            ctx.moveTo(rect.width / 2 + 5, -rect.height / 2 - 5);
-            ctx.lineTo(rect.width / 2 - 5, -rect.height / 2 + 5);
-            ctx.stroke();
+              // Draw X in delete button
+              ctx.strokeStyle = "#ffffff";
+              ctx.lineWidth = 2;
+              ctx.setLineDash([]);
+              ctx.beginPath();
+              ctx.moveTo(rect.width / 2 - 5, -rect.height / 2 - 5);
+              ctx.lineTo(rect.width / 2 + 5, -rect.height / 2 + 5);
+              ctx.moveTo(rect.width / 2 + 5, -rect.height / 2 - 5);
+              ctx.lineTo(rect.width / 2 - 5, -rect.height / 2 + 5);
+              ctx.stroke();
+            }
           }
 
           // Restore context
@@ -799,6 +907,10 @@ const ImageRender = React.memo(() => {
     drawTextOverlay,
     designStoreAspectRatio,
     textPosition,
+    isDragging,
+    draggedLogoId,
+    isResizing,
+    isResizingCorner,
   ]);
 
   // Re-render canvas when relevant state changes - with optimized dependencies
@@ -834,7 +946,7 @@ const ImageRender = React.memo(() => {
 
   // Add a function to prepare the canvas for export
 
-  // Handle mouse down event
+  // Update the handleMouseDown function to handle text resize controls
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
       if (!canvasRef.current) return;
@@ -903,41 +1015,74 @@ const ImageRender = React.memo(() => {
               break;
             }
 
-            // Check for corner handles for resizing
-            const handleSize = 6;
-            const corners = [
-              { x: textRect.x, y: textRect.y, corner: "topLeft" },
+            // Check for resize handles
+            const handleSize = 8;
+            const handles = [
+              {
+                x: textRect.x,
+                y: textRect.y,
+                direction: "topLeft",
+              }, // Top-left
+              {
+                x: textRect.x + textRect.width / 2,
+                y: textRect.y,
+                direction: "top",
+              }, // Top-center
               {
                 x: textRect.x + textRect.width,
                 y: textRect.y,
-                corner: "topRight",
-              },
+                direction: "topRight",
+              }, // Top-right
+              {
+                x: textRect.x,
+                y: textRect.y + textRect.height / 2,
+                direction: "left",
+              }, // Middle-left
+              {
+                x: textRect.x + textRect.width,
+                y: textRect.y + textRect.height / 2,
+                direction: "right",
+              }, // Middle-right
               {
                 x: textRect.x,
                 y: textRect.y + textRect.height,
-                corner: "bottomLeft",
-              },
+                direction: "bottomLeft",
+              }, // Bottom-left
+              {
+                x: textRect.x + textRect.width / 2,
+                y: textRect.y + textRect.height,
+                direction: "bottom",
+              }, // Bottom-center
               {
                 x: textRect.x + textRect.width,
                 y: textRect.y + textRect.height,
-                corner: "bottomRight",
-              },
+                direction: "bottomRight",
+              }, // Bottom-right
             ];
 
-            for (const corner of corners) {
+            // Check if clicked on any handle
+            for (const handle of handles) {
               if (
-                isCornerHandle(mouseX, mouseY, corner.x, corner.y, handleSize)
+                mouseX >= handle.x - handleSize &&
+                mouseX <= handle.x + handleSize &&
+                mouseY >= handle.y - handleSize &&
+                mouseY <= handle.y + handleSize
               ) {
-                setIsResizingCorner(true);
-                setResizeCorner(corner.corner as any);
-                setResizeStartPoint({ x: mouseX, y: mouseY });
+                console.log(
+                  `Starting text resize with handle: ${handle.direction}`
+                );
+                setIsResizingText(true);
+                setResizeDirection(handle.direction);
+                setTextResizeStartPoint({ x: mouseX, y: mouseY });
 
-                // Set which text is being resized
-                if (currentText !== textOverlay) {
-                  setDraggedTextId(currentText.id);
+                // Track which text is being resized and its initial font size
+                if (currentText === textOverlay) {
+                  setResizingTextId(null); // null for legacy text
                 } else {
-                  setDraggedTextId(null); // null indicates legacy text
+                  setResizingTextId(currentText.id);
                 }
+
+                setInitialFontSize(currentText.fontSize);
                 textHandled = true;
                 break;
               }
@@ -983,8 +1128,8 @@ const ImageRender = React.memo(() => {
       if (textHandled) {
         // Force a render to show the selection
         renderCanvas();
-        return;
-      }
+      return;
+    }
 
       // If no text was handled, deselect all texts
       // Deselect legacy text
@@ -1113,7 +1258,7 @@ const ImageRender = React.memo(() => {
     ]
   );
 
-  // Throttled handler for mouse move to reduce re-renders
+  // Update handleMouseMove to restore text dragging functionality
   const handleMouseMove = useCallback(
     (e: MouseEvent) => {
       if (!canvasRef.current) return;
@@ -1137,7 +1282,11 @@ const ImageRender = React.memo(() => {
 
       // For operations that need continuous updates like dragging, don't throttle
       const needsContinuousUpdate =
-        isDragging || isResizing || isDraggingText || isResizingCorner;
+        isDragging ||
+        isResizing ||
+        isDraggingText ||
+        isResizingCorner ||
+        isResizingText;
 
       if (shouldThrottle && !needsContinuousUpdate) {
         return; // Skip this update if we should throttle
@@ -1317,6 +1466,12 @@ const ImageRender = React.memo(() => {
                 x: newX,
                 y: newY,
               });
+
+              // Also update the text overlay directly
+              setTextOverlay({
+                ...textOverlay,
+                position: { x: newX, y: newY },
+              });
             } else {
               // Update text in array
               updateText(draggedTextId, {
@@ -1327,7 +1482,7 @@ const ImageRender = React.memo(() => {
         }
       }
 
-      // Handle resizing
+      // Handle logo resizing
       if (isResizing && draggedLogoId) {
         const logo = logos.find((l) => l.id === draggedLogoId);
         if (logo) {
@@ -1355,13 +1510,96 @@ const ImageRender = React.memo(() => {
         }
       }
 
-      // Update the mouse move handler to implement resizing by corner
-      const handleResizeByCorner = (
-        currentMouseX: number,
-        currentMouseY: number
-      ) => {
-        if (!isResizingCorner || !resizeCorner) return;
+      // Handle text resizing
+      if (isResizingText) {
+        const movementX = currentMouseX - textResizeStartPoint.x;
+        const movementY = currentMouseY - textResizeStartPoint.y;
 
+        // Determine which text is being resized
+        let textToResize = null;
+        if (resizingTextId === null) {
+          // Legacy text
+          textToResize = textOverlay;
+        } else {
+          // Text from array
+          textToResize = textOverlays.find((t) => t.id === resizingTextId);
+        }
+
+        if (!textToResize) return;
+
+        // Calculate scale factor based on movement and resize direction
+        let scaleFactor = 1;
+
+        // Different scaling behavior based on direction
+        switch (resizeDirection) {
+          case "bottomRight":
+          case "topLeft":
+            // Diagonal movement (use the larger of x and y movement)
+            scaleFactor =
+              1 + Math.max(Math.abs(movementX), Math.abs(movementY)) / 100;
+            if (
+              (resizeDirection === "topLeft" && movementX > 0) ||
+              (resizeDirection === "bottomRight" && movementX < 0)
+            ) {
+              scaleFactor = 1 / scaleFactor;
+            }
+            break;
+
+          case "right":
+          case "left":
+            // Horizontal movement
+            scaleFactor = 1 + Math.abs(movementX) / 100;
+            if (
+              (resizeDirection === "left" && movementX > 0) ||
+              (resizeDirection === "right" && movementX < 0)
+            ) {
+              scaleFactor = 1 / scaleFactor;
+            }
+            break;
+
+          case "top":
+          case "bottom":
+            // Vertical movement
+            scaleFactor = 1 + Math.abs(movementY) / 100;
+            if (
+              (resizeDirection === "top" && movementY > 0) ||
+              (resizeDirection === "bottom" && movementY < 0)
+            ) {
+              scaleFactor = 1 / scaleFactor;
+            }
+            break;
+
+          default:
+            // For other directions, use a combination
+            scaleFactor = 1 + (Math.abs(movementX) + Math.abs(movementY)) / 200;
+            if (movementX < 0 || movementY < 0) {
+              scaleFactor = 1 / scaleFactor;
+            }
+        }
+
+        // Calculate new font size with constraints
+        const newFontSize = Math.max(
+          8,
+          Math.min(120, Math.round(initialFontSize * scaleFactor))
+        );
+
+        // Apply the new font size
+        if (resizingTextId === null) {
+          // Update legacy text
+          setTextOverlay({
+            ...textOverlay,
+            fontSize: newFontSize,
+          });
+        } else {
+          // Update text from array
+          updateText(resizingTextId, {
+            fontSize: newFontSize,
+          });
+        }
+      }
+
+      // Handle corner resizing for logos
+      if (isResizingCorner && resizeCorner) {
         if (draggedLogoId) {
           const logo = logos.find((l) => l.id === draggedLogoId);
           if (!logo) return;
@@ -1387,55 +1625,7 @@ const ImageRender = React.memo(() => {
           updateLogo(draggedLogoId, {
             size: Math.max(5, Math.min(100, newSize)),
           });
-        } else if (textOverlay.isSelected) {
-          // Calculate new font size based on corner drag
-          const textRect = calculateTextRect(canvas, textOverlay);
-          if (!textRect) return;
-
-          // Use the width of the rect to determine font size
-          let newWidth = 0;
-          switch (resizeCorner) {
-            case "bottomRight":
-            case "topRight":
-              newWidth = currentMouseX - textRect.x;
-              break;
-            case "bottomLeft":
-            case "topLeft":
-              newWidth = textRect.x + textRect.width - currentMouseX;
-              break;
-          }
-
-          // Calculate font size proportionally but make sure we keep text visible
-          if (newWidth > 20) {
-            // Enforce minimum width for visibility
-            // Adjust scaling factor for better feel
-            const baseWidth = textRect.width - textOverlay.fontSize * 0.6; // Remove padding from calculation
-            const scaleFactor = textOverlay.fontSize / baseWidth;
-            const newFontSize = Math.max(
-              8,
-              Math.min(120, (newWidth - 20) * scaleFactor)
-            );
-
-            // Update text font size
-            if (draggedTextId === null) {
-              // Update legacy text
-              setTextOverlay({
-                ...textOverlay,
-                fontSize: Math.round(newFontSize),
-              });
-            } else {
-              // Update text in array
-              updateText(draggedTextId, {
-                fontSize: Math.round(newFontSize),
-              });
-            }
-          }
         }
-      };
-
-      // Call this function in the mousemove handler
-      if (isResizingCorner) {
-        handleResizeByCorner(currentMouseX, currentMouseY);
       }
     },
     [
@@ -1454,16 +1644,23 @@ const ImageRender = React.memo(() => {
       textOverlays,
       calculateTextRect,
       isDraggingText,
+      isResizingText,
+      resizingTextId,
+      textResizeStartPoint,
+      initialFontSize,
+      resizeDirection,
+      updateText,
       textDragOffset,
       textPosition,
       renderCanvas,
       isResizingCorner,
       resizeCorner,
       calculateImageBounds,
+      setTextOverlay,
     ]
   );
 
-  // Handle mouse up event
+  // Update the handleMouseUp function to reset text resizing state
   const handleMouseUp = useCallback(() => {
     if (isDragging || isResizing || isResizingCorner) {
       console.log("Stopped dragging/resizing");
@@ -1478,7 +1675,20 @@ const ImageRender = React.memo(() => {
       console.log("Stopped dragging text");
       setIsDraggingText(false);
     }
-  }, [isDragging, isResizing, isDraggingText, isResizingCorner]);
+
+    if (isResizingText) {
+      console.log("Stopped resizing text");
+      setIsResizingText(false);
+      setResizingTextId(null);
+      setResizeDirection(null);
+    }
+  }, [
+    isDragging,
+    isResizing,
+    isDraggingText,
+    isResizingCorner,
+    isResizingText,
+  ]);
 
   // Add event listeners
   useEffect(() => {
@@ -1840,7 +2050,7 @@ const ImageRender = React.memo(() => {
     cornerY: number,
     handleSize: number
   ) => {
-    return (
+  return (
       x >= cornerX - handleSize / 2 &&
       x <= cornerX + handleSize / 2 &&
       y >= cornerY - handleSize / 2 &&
@@ -1900,6 +2110,16 @@ const ImageRender = React.memo(() => {
       >
         <h2 className="text-xl font-semibold mb-4 text-center text-gray-800 dark:text-white">
           Canvas
+          {activeFilter ? (
+            <span className="ml-2 text-sm font-normal text-blue-500 flex items-center">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>
+              Filter: {activeFilter.name}
+            </span>
+          ) : (
+            <span className="ml-2 text-xs font-normal text-gray-500">
+              No filter applied
+            </span>
+          )}
         </h2>
 
         {imageUrl && (
@@ -1927,7 +2147,7 @@ const ImageRender = React.memo(() => {
         {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
           <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
             Select an image or add text to display
-          </div>
+      </div>
         )}
 
         {/* Controls overlay */}

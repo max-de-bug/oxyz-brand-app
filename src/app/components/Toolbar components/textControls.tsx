@@ -9,6 +9,10 @@ import {
   Edit,
   Check,
   X,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Eye,
 } from "lucide-react";
 import { TextOverlay, useDesignStore } from "../../store/designStore";
 import { NumberInput } from "../../utils/numberInput";
@@ -18,6 +22,10 @@ import { useState, useEffect, useRef } from "react";
 const FONT_OPTIONS = [
   { value: "ABCDiatype-Regular", label: "ABC Diatype" },
   { value: "ABCDiatypeMono-Regular", label: "ABC Diatype Mono" },
+  { value: "NeueMachina-Regular", label: "Neue Machina" },
+  { value: "NeueMachina-Medium", label: "Neue Machina Medium" },
+  { value: "NeueMachina-Ultrabold", label: "Neue Machina Ultrabold" },
+  { value: "NeueMachina-Ultralight", label: "Neue Machina Ultralight" },
   { value: "Space Grotesk", label: "Space Grotesk" },
   { value: "Inter", label: "Inter" },
 ];
@@ -35,8 +43,18 @@ const DEFAULT_TEXT_VALUES = {
   spacing: 0,
 };
 
-// Global variable to track when we're editing text
+// Add type definition for the global window property
+declare global {
+  interface Window {
+    isEditingText: boolean;
+  }
+}
+
+// Initialize global variable to track when we're editing text
 // This will be used in imageRender.tsx to prevent keyboard shortcuts
+if (typeof window !== "undefined") {
+  window.isEditingText = false;
+}
 
 const TextControls = () => {
   const {
@@ -62,6 +80,18 @@ const TextControls = () => {
   useEffect(() => {
     setEditingTextId(null);
   }, [selectedText]);
+
+  // Update the global editing state
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.isEditingText = editingTextId !== null;
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.isEditingText = false;
+      }
+    };
+  }, [editingTextId]);
 
   // Handle adding new text
   const handleAddText = () => {
@@ -136,19 +166,14 @@ const TextControls = () => {
 
   // Handle key press in editing input
   const handleEditingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Stop propagation for all key events to prevent global handlers from firing
+    e.stopPropagation();
+
     // Only handle Enter and Escape keys to save or cancel
-    // Don't intercept other keys like Backspace
     if (e.key === "Enter") {
-      e.preventDefault();
       saveEditedText();
     } else if (e.key === "Escape") {
-      e.preventDefault();
       cancelEditing();
-    }
-
-    // Explicitly stop propagation for Backspace to ensure it doesn't trigger global handlers
-    if (e.key === "Backspace" || e.key === "Delete") {
-      e.stopPropagation();
     }
   };
 
@@ -156,33 +181,24 @@ const TextControls = () => {
   const activeTextProps = selectedText || DEFAULT_TEXT_VALUES;
 
   return (
-    <>
-      <ul className="flex flex-wrap text-xs font-medium text-center justify-center text-gray-500 dark:text-gray-400 gap-2 mb-2">
-        <li className="flex-1">
-          <button className="flex justify-center py-3 px-3 rounded-lg text-white bg-neutral-800 hover:bg-neutral-700">
-            <Type />
-          </button>
-        </li>
-      </ul>
-
-      {/* Add new text input and button */}
-      <div className="col-span-2 mb-4">
-        <div className="flex justify-between items-center mb-2">
-          <div className="block text-xs font-medium">Add New Text</div>
-        </div>
+    <div className="space-y-4">
+      {/* Add new text input */}
+      <div>
+        <p className="text-xs text-[#888888] mb-2">Add Text</p>
         <div className="flex gap-2">
           <input
             type="text"
-            className="text-xs w-full p-2 bg-neutral-200 dark:bg-neutral-800 rounded-lg"
-            placeholder="Enter new text"
+            className="text-xs w-full p-2 px-3 bg-[#171717] border border-[#333333] rounded-md text-white"
+            placeholder="Enter text..."
             value={newTextInput}
             onChange={(e) => setNewTextInput(e.target.value)}
             onKeyPress={(e) => e.key === "Enter" && handleAddText()}
             maxLength={30}
           />
           <button
-            className="px-3 py-2 bg-neutral-800 text-white rounded-lg"
+            className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-md hover:opacity-90 transition-opacity"
             onClick={handleAddText}
+            title="Add text"
           >
             <Plus size={16} />
           </button>
@@ -191,224 +207,213 @@ const TextControls = () => {
 
       {/* List of existing text elements */}
       {textOverlays.length > 0 && (
-        <div className="col-span-2 mb-4">
-          <div className="block text-xs font-medium mb-2">
-            Existing Texts{" "}
+        <div>
+          <p className="text-xs text-[#888888] mb-2">
+            Text Elements{" "}
             {selectedText && (
-              <span className="text-blue-500">(1 selected)</span>
+              <span className="text-blue-500 ml-1">
+                ({textOverlays.filter((t) => t.isSelected).length} selected)
+              </span>
             )}
-          </div>
-          <ul className="space-y-2 max-h-40 overflow-y-auto">
+          </p>
+          <div className="space-y-2 max-h-[150px] overflow-y-auto scrollbar-thin scrollbar-thumb-[#333333] scrollbar-track-transparent pr-1">
             {textOverlays.map((text) => (
-              <li
+              <div
                 key={text.id}
-                className={`flex justify-between items-center p-2 rounded-lg ${
-                  text.isSelected ? "bg-neutral-200 dark:bg-neutral-700" : ""
-                } hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer`}
-                onClick={() =>
-                  editingTextId !== text.id && selectTextById(text.id)
-                }
+                className={`p-2 rounded-md flex items-center justify-between ${
+                  text.isSelected
+                    ? "bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/50"
+                    : "bg-[#171717] border border-[#333333] hover:border-[#444444]"
+                } transition-colors`}
               >
                 {editingTextId === text.id ? (
-                  <div className="flex flex-1 items-center gap-1">
+                  <div className="flex items-center w-full">
                     <input
                       ref={editingInputRef}
                       type="text"
-                      className="text-xs flex-1 p-1 bg-white dark:bg-neutral-600 rounded"
+                      className="text-xs bg-[#111111] text-white border border-[#444444] rounded p-1 flex-grow mr-2"
                       value={editingTextValue}
                       onChange={handleEditingInputChange}
                       onKeyDown={handleEditingKeyDown}
-                      maxLength={30}
                       onClick={(e) => e.stopPropagation()}
+                      maxLength={30}
                     />
                     <button
-                      className="p-1 text-green-500 hover:text-green-700"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        saveEditedText();
-                      }}
-                      title="Save changes"
+                      onClick={saveEditedText}
+                      className="p-1 text-green-500 hover:text-green-400"
+                      title="Save"
                     >
                       <Check size={14} />
+                    </button>
+                    <button
+                      onClick={cancelEditing}
+                      className="p-1 text-red-500 hover:text-red-400 ml-1"
+                      title="Cancel"
+                    >
+                      <X size={14} />
                     </button>
                   </div>
                 ) : (
                   <>
-                    <span
-                      className="text-xs truncate"
-                      style={{ maxWidth: "70%" }}
+                    <div
+                      className="truncate mr-2 text-xs text-white cursor-pointer flex-grow"
+                      onClick={() => selectTextById(text.id)}
+                      style={{
+                        fontFamily: text.fontFamily,
+                        fontWeight: text.isBold ? "bold" : "normal",
+                        fontStyle: text.isItalic ? "italic" : "normal",
+                      }}
                     >
-                      {text.text || "(empty text)"}
-                    </span>
-                    <div className="flex items-center gap-1">
+                      {text.text}
+                    </div>
+                    <div className="flex items-center space-x-1">
                       <button
-                        className="p-1 text-blue-500 hover:text-blue-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEditing(text);
-                        }}
+                        className="p-1 text-[#888888] hover:text-white transition-colors"
+                        onClick={() => startEditing(text)}
                         title="Edit text"
                       >
                         <Edit size={14} />
                       </button>
                       <button
-                        className="p-1 text-red-500 hover:text-red-700"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteTextById(text.id);
-                        }}
-                        title="Delete text"
+                        className="p-1 text-[#888888] hover:text-white transition-colors"
+                        onClick={() =>
+                          updateText(text.id, { isVisible: !text.isVisible })
+                        }
+                        title={text.isVisible ? "Hide" : "Show"}
+                      >
+                        {text.isVisible ? (
+                          <Eye size={14} />
+                        ) : (
+                          <EyeOff size={14} />
+                        )}
+                      </button>
+                      <button
+                        className="p-1 text-[#888888] hover:text-red-500 transition-colors"
+                        onClick={() => deleteTextById(text.id)}
+                        title="Delete"
                       >
                         <Trash size={14} />
                       </button>
                     </div>
                   </>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
-      {/* Always show controls */}
-      <div className="col-span-2">
-        <div className="flex text-xs gap-2 mt-2">
-          <button
-            className={`px-3 py-3 rounded-lg ${
-              activeTextProps.isBold
-                ? "bg-neutral-800 text-white"
-                : "text-black dark:text-white"
-            }`}
-            onClick={() =>
-              handleUpdateSelectedText({ isBold: !activeTextProps.isBold })
-            }
-          >
-            <Bold />
-          </button>
-          <button
-            className={`px-3 py-3 rounded-lg ${
-              activeTextProps.isItalic
-                ? "bg-neutral-800 text-white"
-                : "text-black dark:text-white"
-            }`}
-            onClick={() =>
-              handleUpdateSelectedText({ isItalic: !activeTextProps.isItalic })
-            }
-          >
-            <Italic />
-          </button>
-          <input
-            type="color"
-            value={activeTextProps.color}
-            onChange={(e) =>
-              handleUpdateSelectedText({ color: e.target.value })
-            }
-            className="w-10 h-10 rounded-lg"
-          />
-        </div>
-        <div className="mt-2">
-          <label
-            htmlFor="fontFamily"
-            className="block text-xs font-medium mb-1"
-          >
-            Font Family
-          </label>
-          <select
-            id="fontFamily"
-            className="text-xs w-full p-2 bg-neutral-200 dark:bg-neutral-800 rounded-lg"
-            value={activeTextProps.fontFamily}
-            onChange={(e) =>
-              handleUpdateSelectedText({ fontFamily: e.target.value })
-            }
-          >
-            {FONT_OPTIONS.map((font) => (
-              <option key={font.value} value={font.value}>
-                {font.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="mt-2">
-          <div className="flex items-center gap-2 mb-1">
-            <label htmlFor="fontSize" className="block text-xs font-medium">
-              Font Size
-            </label>
-            <NumberInput
-              value={activeTextProps.fontSize}
-              onChange={(value) =>
-                handleUpdateSelectedText({ fontSize: value })
-              }
-              min={0}
-              max={100}
-              unit="px"
-            />
+      {/* Text formatting controls (only shown when text is selected) */}
+      {selectedText && (
+        <div>
+          <p className="text-xs text-[#888888] mb-2">Text Formatting</p>
+          <div className="space-y-3 bg-[#171717] p-3 rounded-md border border-[#333333]">
+            {/* Font family selection */}
+            <div>
+              <p className="text-xs text-[#777777] mb-1">Font</p>
+              <select
+                className="w-full p-2 bg-[#111111] border border-[#333333] rounded text-xs text-white"
+                value={activeTextProps.fontFamily}
+                onChange={(e) =>
+                  handleUpdateSelectedText({ fontFamily: e.target.value })
+                }
+              >
+                {FONT_OPTIONS.map((font) => (
+                  <option key={font.value} value={font.value}>
+                    {font.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Font size, color, and style controls */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-xs text-[#777777] mb-1">Size</p>
+                <div className="w-full p-2 bg-[#111111] border border-[#333333] rounded text-xs text-white">
+                  <NumberInput
+                    min={8}
+                    max={72}
+                    value={activeTextProps.fontSize}
+                    onChange={(value) =>
+                      handleUpdateSelectedText({ fontSize: value })
+                    }
+                    unit="px"
+                  />
+                </div>
+              </div>
+              <div>
+                <p className="text-xs text-[#777777] mb-1">Color</p>
+                <input
+                  type="color"
+                  className="w-full h-8 bg-[#111111] border border-[#333333] rounded cursor-pointer"
+                  value={activeTextProps.color}
+                  onChange={(e) =>
+                    handleUpdateSelectedText({ color: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Style buttons */}
+            <div className="flex gap-2">
+              <button
+                className={`flex-1 p-2 rounded border ${
+                  activeTextProps.isBold
+                    ? "bg-blue-600 text-white border-blue-700"
+                    : "bg-[#111111] text-[#888888] border-[#333333] hover:bg-[#222222]"
+                } transition-colors`}
+                onClick={() =>
+                  handleUpdateSelectedText({ isBold: !activeTextProps.isBold })
+                }
+              >
+                <Bold size={14} className="mx-auto" />
+              </button>
+              <button
+                className={`flex-1 p-2 rounded border ${
+                  activeTextProps.isItalic
+                    ? "bg-blue-600 text-white border-blue-700"
+                    : "bg-[#111111] text-[#888888] border-[#333333] hover:bg-[#222222]"
+                } transition-colors`}
+                onClick={() =>
+                  handleUpdateSelectedText({
+                    isItalic: !activeTextProps.isItalic,
+                  })
+                }
+              >
+                <Italic size={14} className="mx-auto" />
+              </button>
+              <button
+                className="flex-1 p-2 rounded bg-[#111111] text-[#888888] border border-[#333333] hover:bg-[#222222] transition-colors"
+                onClick={() =>
+                  handleUpdateSelectedText({
+                    spacing: activeTextProps.spacing + 1,
+                  })
+                }
+              >
+                <AlignLeft size={14} className="mx-auto" />
+              </button>
+              <button
+                className="flex-1 p-2 rounded bg-[#111111] text-[#888888] border border-[#333333] hover:bg-[#222222] transition-colors"
+                onClick={() => handleUpdateSelectedText({ spacing: 0 })}
+              >
+                <AlignCenter size={14} className="mx-auto" />
+              </button>
+              <button
+                className="flex-1 p-2 rounded bg-[#111111] text-[#888888] border border-[#333333] hover:bg-[#222222] transition-colors"
+                onClick={() =>
+                  handleUpdateSelectedText({
+                    spacing: activeTextProps.spacing - 1,
+                  })
+                }
+              >
+                <AlignRight size={14} className="mx-auto" />
+              </button>
+            </div>
           </div>
-          <input
-            type="range"
-            id="fontSize"
-            min="0"
-            max="100"
-            value={activeTextProps.fontSize}
-            onChange={(e) =>
-              handleUpdateSelectedText({ fontSize: parseInt(e.target.value) })
-            }
-            className="w-full mt-2"
-          />
         </div>
-        <div className="mt-2">
-          <div className="flex items-center gap-2 mb-1">
-            <label htmlFor="rotation" className="block text-xs font-medium">
-              Rotation
-            </label>
-            <NumberInput
-              value={activeTextProps.rotation}
-              onChange={(value) =>
-                handleUpdateSelectedText({ rotation: value })
-              }
-              min={-180}
-              max={180}
-              unit="°"
-            />
-          </div>
-          <input
-            type="range"
-            id="rotation"
-            min="-180"
-            max="180"
-            value={activeTextProps.rotation}
-            onChange={(e) =>
-              handleUpdateSelectedText({ rotation: parseInt(e.target.value) })
-            }
-            className="w-full mt-2"
-          />
-        </div>
-        <div className="mt-2">
-          <div className="flex items-center gap-2 mb-1">
-            <label htmlFor="spacing" className="block text-xs font-medium">
-              Letter Spacing
-            </label>
-            <NumberInput
-              value={activeTextProps.spacing}
-              onChange={(value) => handleUpdateSelectedText({ spacing: value })}
-              min={0}
-              max={20}
-              unit="px"
-            />
-          </div>
-          <input
-            type="range"
-            id="spacing"
-            min="0"
-            max="20"
-            value={activeTextProps.spacing}
-            onChange={(e) =>
-              handleUpdateSelectedText({ spacing: parseInt(e.target.value) })
-            }
-            className="w-full mt-2"
-          />
-        </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

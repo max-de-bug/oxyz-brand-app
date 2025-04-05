@@ -3,12 +3,17 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { z } from "zod";
 import { useAuth } from "@/app/store/auth-context";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Loader2, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
+import {
+  Loader2,
+  Mail,
+  ArrowRight,
+  CheckCircle2,
+  ChevronLeft,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // Zod schema for form validation
@@ -36,8 +41,34 @@ export default function SignIn() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-[#070707] to-[#1a1a1a] p-4">
+      {/* Bacground decorative elements */}
+      <div className="absolute inset-0 overflow-hidden z-0">
+        <div className="absolute top-0 left-1/4 w-80 h-80 bg-blue-500/10 rounded-full filter blur-3xl"></div>
+        <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full filter blur-3xl"></div>
+      </div>
+
+      {/* Navigation */}
+      <div className="w-full max-w-md mb-4 z-10">
+        <Link
+          href="/"
+          className="inline-flex items-center text-[#888] hover:text-white transition-colors"
+        >
+          <ChevronLeft size={16} className="mr-1" />
+          <span>Back to Home</span>
+        </Link>
+      </div>
+
+      <div className="w-full max-w-md z-10">
+        {/* Logo or brand */}
+        <div className="flex justify-center mb-8">
+          <div className="text-xl font-semibold">
+            <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
+              O.XYZ DESIGNER
+            </span>
+          </div>
+        </div>
+
         <AnimatePresence mode="wait">
           {!emailSent ? (
             <motion.div
@@ -46,35 +77,33 @@ export default function SignIn() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl"
+              className="bg-[#111111]/60 backdrop-blur-md border border-[#333333] p-8 rounded-lg"
             >
               <div className="flex flex-col items-center mb-6">
-                <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center mb-4">
-                  <Mail className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center mb-4">
+                  <Mail className="w-5 h-5 text-white" />
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Welcome back
-                </h1>
-                <p className="text-gray-500 dark:text-gray-400 mt-2 text-center">
+                <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
+                <p className="text-[#888888] mt-2 text-center">
                   Sign in to your account using your email
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-2">
-                  <Label
+                  <label
                     htmlFor="email"
-                    className="text-sm font-medium text-gray-700 dark:text-gray-300"
+                    className="text-sm font-medium text-[#cccccc] block"
                   >
                     Email address
-                  </Label>
-                  <Input
+                  </label>
+                  <input
                     id="email"
                     type="email"
                     placeholder="you@example.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full px-4 py-2"
+                    className="w-full px-4 py-3 bg-[#171717] border border-[#333333] rounded-md text-white placeholder:text-[#555555] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     required
                     disabled={isLoading}
                   />
@@ -84,15 +113,19 @@ export default function SignIn() {
                   <motion.div
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-3 rounded-md bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 text-sm"
+                    className="p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm"
                   >
                     {error.message}
                   </motion.div>
                 )}
 
-                <Button
+                <button
                   type="submit"
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  className={`w-full py-3 px-4 rounded-md flex items-center justify-center font-medium transition-all ${
+                    isLoading || !email
+                      ? "bg-[#333333] text-[#888888] cursor-not-allowed"
+                      : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
+                  }`}
                   disabled={isLoading || !email}
                 >
                   {isLoading ? (
@@ -100,8 +133,8 @@ export default function SignIn() {
                   ) : (
                     <ArrowRight className="w-4 h-4 mr-2" />
                   )}
-                  {isLoading ? "Sending link..." : "Send magic link"}
-                </Button>
+                  {isLoading ? "Sending link..." : "Send Magic Link"}
+                </button>
               </form>
             </motion.div>
           ) : (
@@ -111,7 +144,7 @@ export default function SignIn() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
-              className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-xl"
+              className="bg-[#111111]/60 backdrop-blur-md border border-[#333333] p-8 rounded-lg"
             >
               <div className="flex flex-col items-center text-center space-y-4">
                 <motion.div
@@ -123,43 +156,38 @@ export default function SignIn() {
                     damping: 15,
                     delay: 0.1,
                   }}
-                  className="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center"
+                  className="w-16 h-16 bg-gradient-to-r from-green-500 to-teal-500 rounded-full flex items-center justify-center"
                 >
-                  <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
+                  <CheckCircle2 className="w-8 h-8 text-white" />
                 </motion.div>
 
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Check your inbox
+                <h2 className="text-2xl font-bold text-white">
+                  Check Your Inbox
                 </h2>
 
                 <div className="space-y-2">
-                  <p className="text-gray-600 dark:text-gray-300">
-                    We've sent a magic link to
-                  </p>
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {email}
-                  </p>
+                  <p className="text-[#cccccc]">We've sent a magic link to</p>
+                  <p className="font-medium text-white">{email}</p>
                 </div>
 
-                <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+                <p className="text-sm text-[#888888] max-w-sm">
                   Click the link in the email to sign in to your account. If you
                   don't see it, check your spam folder.
                 </p>
 
-                <div className="pt-4 space-y-3">
-                  <Button
+                <div className="pt-4 space-y-3 w-full">
+                  <button
                     onClick={() => setEmailSent(false)}
-                    variant="outline"
-                    className="w-full"
+                    className="w-full py-3 px-4 rounded-md border border-[#333333] bg-transparent text-white hover:bg-[#222222] transition-colors"
                   >
                     Use a different email
-                  </Button>
+                  </button>
 
                   <a
                     href={`https://${email.split("@")[1]}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="block text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                    className="block text-sm text-blue-400 hover:text-blue-300 transition-colors"
                   >
                     Open email provider →
                   </a>
@@ -169,22 +197,27 @@ export default function SignIn() {
           )}
         </AnimatePresence>
 
-        <p className="mt-4 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-6 text-center text-sm text-[#888888]">
           By continuing, you agree to our{" "}
           <a
             href="/terms"
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline"
           >
             Terms of Service
           </a>{" "}
           and{" "}
           <a
             href="/privacy"
-            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+            className="text-blue-400 hover:text-blue-300 underline-offset-2 hover:underline"
           >
             Privacy Policy
           </a>
         </p>
+      </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-4 text-center text-xs text-[#555555] z-10">
+        © {new Date().getFullYear()} O.XYZ Designer. All rights reserved.
       </div>
     </div>
   );

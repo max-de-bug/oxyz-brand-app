@@ -69,6 +69,8 @@ export const apiClient = {
       const url = formatEndpoint(endpoint);
       const headers = await getAuthHeaders();
 
+      console.log(`POST request to ${url}:`, data);
+
       const response = await fetch(url, {
         method: "POST",
         headers,
@@ -89,7 +91,9 @@ export const apiClient = {
         throw new Error(error.message || `API error: ${response.status}`);
       }
 
-      return response.json();
+      const responseData = await response.json();
+      console.log(`POST response from ${url}:`, responseData);
+      return responseData;
     } catch (error) {
       console.error(`Error posting to ${endpoint}:`, error);
       throw error;
