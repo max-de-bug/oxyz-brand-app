@@ -30,11 +30,16 @@ export interface UserProfile {
 }
 
 export function useUserProfile() {
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
   return useQuery<UserProfile>({
     queryKey: ["user", "profile"],
     queryFn: async () => {
       try {
         const response = await apiClient.get<UserProfile>("/users/profile");
+        console.log("Response UserProfile", response);
         return response;
       } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -44,6 +49,8 @@ export function useUserProfile() {
     retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
+    // Skip the query if there's no token (user is not authenticated)
+    enabled: !!token,
   });
 }
 
@@ -131,9 +138,27 @@ export function useUploadImage() {
     onSuccess: (uploadedImage, _) => {
       // Update the Zustand store immediately
       const currentImages = useImageStore.getState().savedImages;
-      useImageStore.setState({
-        savedImages: [uploadedImage, ...currentImages],
-      });
+
+      // If uploadedImage is an array, handle appropriately
+      if (Array.isArray(uploadedImage) && uploadedImage.length > 0) {
+        // Update savedImages with the new array at the beginning
+        useImageStore.setState({
+          savedImages: [...uploadedImage, ...currentImages],
+        });
+
+        // If there's a URL, set it as the current image
+        if (uploadedImage[0]?.url) {
+          useImageStore.getState().setImage(uploadedImage[0].url);
+        }
+      } else if (uploadedImage?.url) {
+        // Handle single object response
+        useImageStore.setState({
+          savedImages: [uploadedImage, ...currentImages],
+        });
+
+        // Set the uploaded image as the current image
+        useImageStore.getState().setImage(uploadedImage.url);
+      }
 
       // Invalidate both general images and user-specific images queries
     },
@@ -180,6 +205,10 @@ export function useCreateDesign() {
 // ========================
 
 export function useFilters() {
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
   return useQuery<Filter[]>({
     queryKey: ["filters"],
     queryFn: async () => {
@@ -193,6 +222,8 @@ export function useFilters() {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes cache
     gcTime: 10 * 60 * 1000, // 10 minutes garbage collection
+    // Skip the query if there's no token (user is not authenticated)
+    enabled: !!token,
   });
 }
 
@@ -335,6 +366,9 @@ export function useUserImages(
   >
 ) {
   const queryClient = useQueryClient();
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
   return useQuery<
     ImageData,
@@ -370,7 +404,7 @@ export function useUserImages(
       }
       return { images: [], total: 0 };
     },
-    enabled: !!userId,
+    enabled: !!userId && !!token, // Only fetch if both userId and token exist
     refetchOnMount: true, // Refetch on component mount
     refetchOnWindowFocus: true, // Refetch when window gains focus
     staleTime: 0, // Data is immediately stale
@@ -425,6 +459,9 @@ export function useDeleteImage() {
 // Fetch cloudinary logos
 export function useCloudinaryLogos(folder = "logos") {
   const queryClient = useQueryClient();
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
   return useQuery({
     queryKey: ["logos", "cloudinary", folder],
@@ -473,6 +510,8 @@ export function useCloudinaryLogos(folder = "logos") {
     gcTime: 0,
     retry: 1,
     refetchOnWindowFocus: false,
+    // Skip the query if there's no token (user is not authenticated)
+    enabled: !!token,
   });
 }
 
@@ -516,6 +555,9 @@ export function useDeleteLogo() {
 // Fetch cloudinary presets
 export function useCloudinaryPresets(folder = "presets") {
   const queryClient = useQueryClient();
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
   return useQuery({
     queryKey: ["presets", "cloudinary", folder],
@@ -526,6 +568,8 @@ export function useCloudinaryPresets(folder = "presets") {
     },
     staleTime: 0,
     gcTime: 0,
+    // Skip the query if there's no token (user is not authenticated)
+    enabled: !!token,
   });
 }
 
@@ -596,12 +640,18 @@ export const useSaveDesign = () => {
 
 // Update useSavedDesigns to include better typing and error handling
 export const useSavedDesigns = () => {
+  // Get the current authentication state from localStorage
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
   return useQuery<SaveDesign[]>({
     queryKey: ["saved-designs"],
     queryFn: async () => {
       const response = await apiClient.get<SaveDesign[]>("designs");
       return response;
     },
+    // Skip the query if there's no token (user is not authenticated)
+    enabled: !!token,
   });
 };
 

@@ -13,6 +13,9 @@ import {
   AlignCenter,
   AlignRight,
   Eye,
+  RotateCcw,
+  Underline,
+  MoveHorizontal,
 } from "lucide-react";
 import { TextOverlay, useDesignStore } from "../../store/designStore";
 import { NumberInput } from "../../utils/numberInput";
@@ -326,11 +329,11 @@ const TextControls = () => {
               </select>
             </div>
 
-            {/* Font size, color, and style controls */}
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <p className="text-xs text-[#777777] mb-1">Size</p>
-                <div className="w-full p-2 bg-[#111111] border border-[#333333] rounded text-xs text-white">
+            {/* Font size with range slider */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <p className="text-xs text-[#777777]">Size</p>
+                <div className="w-full max-w-[80px] p-1 bg-[#111111] border border-[#333333] rounded text-xs text-white">
                   <NumberInput
                     min={8}
                     max={72}
@@ -342,17 +345,97 @@ const TextControls = () => {
                   />
                 </div>
               </div>
-              <div>
-                <p className="text-xs text-[#777777] mb-1">Color</p>
-                <input
-                  type="color"
-                  className="w-full h-8 bg-[#111111] border border-[#333333] rounded cursor-pointer"
-                  value={activeTextProps.color}
-                  onChange={(e) =>
-                    handleUpdateSelectedText({ color: e.target.value })
-                  }
-                />
+              <input
+                type="range"
+                className="w-full h-2 bg-[#111111] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                min="8"
+                max="72"
+                value={activeTextProps.fontSize}
+                onChange={(e) =>
+                  handleUpdateSelectedText({
+                    fontSize: parseInt(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            {/* Text rotation slider */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <RotateCcw size={12} className="text-[#777777]" />
+                  <p className="text-xs text-[#777777]">Rotation</p>
+                </div>
+                <div className="w-full max-w-[80px] p-1 bg-[#111111] border border-[#333333] rounded text-xs text-white">
+                  <NumberInput
+                    min={0}
+                    max={360}
+                    value={activeTextProps.rotation}
+                    onChange={(value) =>
+                      handleUpdateSelectedText({ rotation: value })
+                    }
+                    unit="°"
+                  />
+                </div>
               </div>
+              <input
+                type="range"
+                className="w-full h-2 bg-[#111111] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                min="0"
+                max="360"
+                value={activeTextProps.rotation}
+                onChange={(e) =>
+                  handleUpdateSelectedText({
+                    rotation: parseInt(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            {/* Letter spacing slider */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-1">
+                  <MoveHorizontal size={12} className="text-[#777777]" />
+                  <p className="text-xs text-[#777777]">Letter Spacing</p>
+                </div>
+                <div className="w-full max-w-[80px] p-1 bg-[#111111] border border-[#333333] rounded text-xs text-white">
+                  <NumberInput
+                    min={-5}
+                    max={20}
+                    value={activeTextProps.spacing}
+                    onChange={(value) =>
+                      handleUpdateSelectedText({ spacing: value })
+                    }
+                    unit="px"
+                  />
+                </div>
+              </div>
+              <input
+                type="range"
+                className="w-full h-2 bg-[#111111] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                min="-5"
+                max="20"
+                value={activeTextProps.spacing}
+                onChange={(e) =>
+                  handleUpdateSelectedText({
+                    spacing: parseInt(e.target.value),
+                  })
+                }
+              />
+            </div>
+
+            {/* Color picker */}
+            <div>
+              <p className="text-xs text-[#777777] mb-1">Color</p>
+              <input
+                type="color"
+                className="w-full h-8 bg-[#111111] border border-[#333333] rounded cursor-pointer"
+                value={activeTextProps.color}
+                onChange={(e) =>
+                  handleUpdateSelectedText({ color: e.target.value })
+                }
+              />
             </div>
 
             {/* Style buttons */}

@@ -34,6 +34,8 @@ const usernameSchema = z
 export default function AuthButton() {
   const { user, defaultImage, signOut } = useAuth();
   const updateUsernameMutation = useUpdateUsername();
+
+  // Only fetch profile if user is authenticated
   const { data: userProfile, isLoading: isProfileLoading } = useUserProfile();
   const router = useRouter();
   const { toast } = useToast();
@@ -41,6 +43,7 @@ export default function AuthButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [validationError, setValidationError] = useState("");
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Get current username from user profile or fallback to email
   const currentUsername = userProfile?.name || user?.email?.split("@")[0] || "";
@@ -57,8 +60,28 @@ export default function AuthButton() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
+    try {
+      setIsSigningOut(true);
+
+      // Show loading toast
+      toast({
+        title: "Signing out...",
+        description: "Please wait while we sign you out",
+      });
+
+      await signOut();
+
+      // Clear any cached queries
+      window.location.href = "/"; // Use full page refresh to clear all states
+    } catch (error) {
+      console.error("Error signing out:", error);
+      toast({
+        variant: "destructive",
+        title: "Sign Out Failed",
+        description: "There was an error signing out. Please try again.",
+      });
+      setIsSigningOut(false); // Only reset if there's an error
+    }
   };
 
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -127,17 +150,33 @@ export default function AuthButton() {
             }}
           />
           <AvatarFallback>
-            <User className="h-4 w-4" />
+            {isProfileLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <User className="h-4 w-4" />
+            )}
           </AvatarFallback>
         </Avatar>
         <span className="text-sm font-medium hidden md:inline-block">
-          {isProfileLoading ? "Loading..." : currentUsername || "User"}
+          {isProfileLoading ? (
+            <span className="inline-flex items-center">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              Loading...
+            </span>
+          ) : (
+            currentUsername || "User"
+          )}
         </span>
       </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="h-8">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            disabled={isProfileLoading}
+          >
             <Edit className="h-3.5 w-3.5 mr-1" />
             Edit
           </Button>
@@ -204,8 +243,19 @@ export default function AuthButton() {
         </DialogContent>
       </Dialog>
 
-      <Button variant="destructive" onClick={handleSignOut}>
-        Sign Out
+      <Button
+        variant="destructive"
+        onClick={handleSignOut}
+        disabled={isSigningOut}
+      >
+        {isSigningOut ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Signing Out...
+          </>
+        ) : (
+          "Sign Out"
+        )}
       </Button>
     </div>
   );

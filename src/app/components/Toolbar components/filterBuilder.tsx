@@ -1,7 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Loader2, Upload, Sliders, Trash2, Check, X } from "lucide-react";
+import {
+  Loader2,
+  Upload,
+  Sliders,
+  Trash2,
+  Check,
+  X,
+  LogIn,
+} from "lucide-react";
 import { useImageStore } from "@/app/store/imageStore";
 import { Filter, FilterValues, useFilterStore } from "@/app/store/filterStore";
 import { Button } from "@/components/ui/button";
@@ -12,13 +20,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { signIn } from "next-auth/react";
+import { useAuth } from "@/app/store/auth-context";
 import {
   useFilters,
   useCreateFilter,
   useDeleteFilter,
 } from "@/lib/api/queries";
+import Link from "next/link";
 
 const FilterBuilder = () => {
+  const { session } = useAuth();
   const [selectedFilter, setSelectedFilter] = useState<Filter | null>(null);
   const [newFilter, setNewFilter] = useState<{
     name: string;
@@ -35,7 +47,15 @@ const FilterBuilder = () => {
   });
 
   const { toast } = useToast();
-  const { setFilter } = useImageStore();
+  const {
+    setFilter,
+    imageUrl,
+    brightness,
+    contrast,
+    saturation,
+    sepia,
+    opacity,
+  } = useImageStore();
 
   // Replace filter store with React Query hooks
   const {
@@ -185,6 +205,154 @@ const FilterBuilder = () => {
       });
     }
   };
+
+  // Render sign-in prompt for non-authenticated users
+  if (!session) {
+    return (
+      <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex justify-between mb-4">
+          <h3 className="text-sm font-medium flex items-center gap-1">
+            <Sliders size={16} />
+            Filter Controls
+          </h3>
+          <div className="text-xs text-gray-500">Sign in to save filters</div>
+        </div>
+
+        {/* Basic filter controls for non-authenticated users */}
+        <div className="space-y-4">
+          {/* Brightness Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Brightness</Label>
+              <span className="text-xs text-neutral-500">{brightness}%</span>
+            </div>
+            <Slider
+              value={[brightness]}
+              min={0}
+              max={200}
+              step={1}
+              onValueChange={(value) =>
+                setFilter({ ...useImageStore.getState(), brightness: value[0] })
+              }
+            />
+          </div>
+
+          {/* Contrast Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Contrast</Label>
+              <span className="text-xs text-neutral-500">{contrast}%</span>
+            </div>
+            <Slider
+              value={[contrast]}
+              min={0}
+              max={200}
+              step={1}
+              onValueChange={(value) =>
+                setFilter({ ...useImageStore.getState(), contrast: value[0] })
+              }
+            />
+          </div>
+
+          {/* Saturation Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Saturation</Label>
+              <span className="text-xs text-neutral-500">{saturation}%</span>
+            </div>
+            <Slider
+              value={[saturation]}
+              min={0}
+              max={200}
+              step={1}
+              onValueChange={(value) =>
+                setFilter({ ...useImageStore.getState(), saturation: value[0] })
+              }
+            />
+          </div>
+
+          {/* Sepia Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Sepia</Label>
+              <span className="text-xs text-neutral-500">{sepia}%</span>
+            </div>
+            <Slider
+              value={[sepia]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={(value) =>
+                setFilter({ ...useImageStore.getState(), sepia: value[0] })
+              }
+            />
+          </div>
+
+          {/* Opacity Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Opacity</Label>
+              <span className="text-xs text-neutral-500">{opacity}%</span>
+            </div>
+            <Slider
+              value={[opacity]}
+              min={0}
+              max={100}
+              step={1}
+              onValueChange={(value) =>
+                setFilter({ ...useImageStore.getState(), opacity: value[0] })
+              }
+            />
+          </div>
+        </div>
+
+        {/* Preview for non-authenticated users */}
+        {imageUrl && (
+          <div className="mt-3 p-2 border rounded bg-white">
+            <div className="text-xs text-center mb-1">Preview</div>
+            <div
+              className="h-16 bg-cover bg-center rounded"
+              style={{
+                backgroundImage: `url(${imageUrl})`,
+                filter: `
+                  brightness(${brightness}%) 
+                  contrast(${contrast}%) 
+                  saturate(${saturation}%) 
+                  sepia(${sepia}%)
+                `,
+                opacity: `${opacity / 100}`,
+              }}
+            ></div>
+          </div>
+        )}
+
+        {/* Sign in prompt */}
+        <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center mt-6">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Sliders size={24} className="text-gray-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium mb-1">
+                Sign in to Save Filters
+              </h3>
+              <p className="text-xs text-gray-500 max-w-[200px] mx-auto">
+                Sign in to create, save, and reuse your favorite filter
+                combinations
+              </p>
+            </div>
+            <Link
+              href="/auth/sign-in"
+              className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+              aria-label="sign-in"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">

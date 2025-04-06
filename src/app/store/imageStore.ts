@@ -98,7 +98,8 @@ export const useImageStore = create<ImageState>((set, get) => ({
   clearMainImage: () => {
     // Get the preset store actions
     const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
-    // Clear everything in one action
+    const { setCurrentDesignId } = useDesignStore.getState();
+
     set({
       imageUrl: null,
       logos: [],
@@ -109,9 +110,9 @@ export const useImageStore = create<ImageState>((set, get) => ({
       opacity: 100,
     });
 
-    // Clear preset states
     setActivePreset(null);
     setSelectedPreset(null);
+    setCurrentDesignId(null);
   },
 
   addLogo: (url) => {

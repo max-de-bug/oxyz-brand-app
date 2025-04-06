@@ -1,9 +1,10 @@
 "use client";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Cloud } from "lucide-react";
 import { useDesignStore } from "../../store/designStore";
 import { useImageStore } from "@/app/store/imageStore";
 import { useState } from "react";
 import { useAuth } from "@/app/store/auth-context";
+import { signIn } from "next-auth/react";
 import {
   useSaveDesign,
   useSavedDesigns,
@@ -11,9 +12,11 @@ import {
 } from "@/lib/api/queries";
 import { toast } from "@/hooks/use-toast";
 import { captureVisibleCanvas } from "./exportControls";
+import Link from "next/link";
 
 // Define the SavedDesign type
 interface SavedDesign {
+  id: string;
   name: string;
   imageUrl: string;
   filter?: {
@@ -93,6 +96,7 @@ const SavedDesigns = () => {
 
       // Prepare the design payload
       const designPayload = {
+        id: `design-${Date.now()}`, // Add generated id to fix the type error
         imageUrl: capturedImage, // Send the captured canvas image
         name: `Design ${(savedDesigns as SavedDesign[]).length + 1}`,
         filter: {
@@ -232,12 +236,56 @@ const SavedDesigns = () => {
   if (!session) {
     return (
       <div className="p-4">
-        <h2 className="text-lg font-semibold mb-4">Saved Designs</h2>
-        <div className="text-center p-4 border border-dashed rounded">
-          <p className="text-sm text-gray-500">
-            Please sign in to save designs
-          </p>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Saved Designs</h2>
+          <div className="text-xs text-gray-500">Sign in to save designs</div>
         </div>
+
+        <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Cloud size={24} className="text-gray-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium mb-1">
+                Sign in to Save Your Designs
+              </h3>
+              <p className="text-xs text-gray-500 max-w-[200px] mx-auto">
+                Sign in to save, manage, and access your designs across devices
+              </p>
+            </div>
+            <Link
+              href="/auth/sign-in"
+              className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+              aria-label="sign-in"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+
+        {/* Preview Features */}
+        {imageUrl && (
+          <div className="mt-6">
+            <h3 className="text-sm font-medium mb-2">Current Design</h3>
+            <div className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 relative">
+              <img
+                src={imageUrl}
+                alt="Current design"
+                className="w-full h-full object-cover"
+                style={{
+                  filter: `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%) sepia(${sepia}%)`,
+                  opacity: opacity / 100,
+                }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity duration-200">
+                <p className="text-white text-sm font-medium">
+                  Sign in to save this design
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }

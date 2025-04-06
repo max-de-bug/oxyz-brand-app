@@ -2,10 +2,9 @@
 
 import React, { ReactNode } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { Navigation, Pagination } from "swiper/modules";
+import { Navigation } from "swiper/modules";
 import "swiper/css";
 import "swiper/css/navigation";
-import "swiper/css/pagination";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -17,7 +16,6 @@ export interface CarouselProps {
   spacing?: number;
   className?: string;
   showNavigation?: boolean;
-  showPagination?: boolean;
 }
 
 export const Carousel = ({
@@ -26,7 +24,6 @@ export const Carousel = ({
   spacing = 16,
   className = "",
   showNavigation = true,
-  showPagination = true,
 }: CarouselProps) => {
   const navigationPrevRef = React.useRef<HTMLDivElement>(null);
   const navigationNextRef = React.useRef<HTMLDivElement>(null);
@@ -40,14 +37,13 @@ export const Carousel = ({
   return (
     <div className={`relative ${className}`}>
       <Swiper
-        modules={[Navigation, Pagination]}
+        modules={[Navigation]}
         spaceBetween={spacing}
         slidesPerView={itemsPerView}
         navigation={{
           prevEl: navigationPrevRef.current,
           nextEl: navigationNextRef.current,
         }}
-        pagination={showPagination ? { clickable: true } : false}
         breakpoints={{
           // when window width is >= 320px
           320: {

@@ -14,6 +14,7 @@ import {
   useDeleteImage,
 } from "@/lib/api/queries";
 import Image from "next/image";
+import Link from "next/link";
 
 const ImageUploader = () => {
   const { session } = useAuth();
@@ -58,20 +59,13 @@ const ImageUploader = () => {
       setSuccessMessage(null);
 
       try {
-        const uploadedImage = await uploadImageMutation.mutateAsync(file, {
-          onSuccess: (data) => {
-            // Set the newly uploaded image as the current image
-            if (data.url) {
-              setImage(data.url);
-            }
-          },
-        });
+        const uploadedImage = await uploadImageMutation.mutateAsync(file);
 
         // Show success message
         setSuccessMessage("Image uploaded successfully!");
 
         // Explicitly refetch images to ensure UI is up to date
-        await refetchImages();
+        // await refetchImages();
 
         event.target.value = ""; // Reset input
       } catch (error) {
@@ -123,17 +117,28 @@ const ImageUploader = () => {
   // Show a sign-in message if not signed in
   const renderSignInMessage = useCallback(
     () => (
-      <div className="p-8 text-center border border-dashed rounded-lg">
-        <LogIn className="mx-auto mb-2" size={24} />
-        <p className="text-sm text-gray-500 mb-4">
-          Please sign in to access your image library
-        </p>
-        <Button
-          variant="default"
-          onClick={() => signIn("discord", { callbackUrl: "/" })}
-        >
-          Sign In with Discord
-        </Button>
+      <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+            <Upload size={24} className="text-gray-500" />
+          </div>
+          <div>
+            <h3 className="text-sm font-medium mb-1">
+              Sign in to Upload Images
+            </h3>
+            <p className="text-xs text-gray-500 max-w-[200px] mx-auto">
+              Sign in to upload, manage, and access your image library across
+              devices
+            </p>
+          </div>
+          <Link
+            href="/auth/sign-in"
+            className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+            aria-label="sign-in"
+          >
+            Sign In
+          </Link>
+        </div>
       </div>
     ),
     []
@@ -223,7 +228,7 @@ const ImageUploader = () => {
         {session && (
           <button
             onClick={() => refetchImages()}
-            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 hover:bg-gray-700"
+            className="flex items-center gap-1 px-2 py-1 text-sm bg-gray-800 hover:bg-gray-700 rounded"
             disabled={isLoadingImages}
           >
             {isLoadingImages ? (
@@ -232,6 +237,9 @@ const ImageUploader = () => {
               <RefreshCw size={16} />
             )}
           </button>
+        )}
+        {!session && (
+          <div className="text-xs text-gray-500">Sign in to upload images</div>
         )}
       </div>
 
@@ -275,7 +283,7 @@ const ImageUploader = () => {
         renderSignInMessage()
       )}
 
-      {/* Active Images Section */}
+      {/* Active Images Section - Show for all users */}
       <div className="mb-4">
         <h3 className="text-sm font-medium mb-2">
           Active Images ({imageUrl ? 1 : 0})
@@ -314,7 +322,7 @@ const ImageUploader = () => {
       </div>
 
       {/* Saved Images Carousel - only show when signed in */}
-      {session && (
+      {session ? (
         <div className="mt-6">
           {isLoadingImages ? (
             <div className="flex justify-center py-8">
@@ -341,6 +349,24 @@ const ImageUploader = () => {
             </div>
           )}
         </div>
+      ) : (
+        imageUrl && (
+          <div className="mt-6">
+            <h3 className="text-sm font-medium mb-2">Image Preview</h3>
+            <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-300">
+              <img
+                src={imageUrl}
+                alt="Current image"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 hover:opacity-100 transition-opacity duration-200">
+                <p className="text-white text-sm font-medium">
+                  Sign in to save this image
+                </p>
+              </div>
+            </div>
+          </div>
+        )
       )}
     </div>
   );

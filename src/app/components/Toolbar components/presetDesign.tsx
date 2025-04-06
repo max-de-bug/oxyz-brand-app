@@ -22,6 +22,7 @@ import { useAuth } from "@/app/store/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { Carousel } from "@/components/ui/carousel";
 import { useCloudinaryPresets, useDeletePreset } from "@/lib/api/queries";
+import Link from "next/link";
 
 const PresetDesigns = () => {
   const { session } = useAuth();
@@ -216,7 +217,69 @@ const PresetDesigns = () => {
   );
 
   if (!session) {
-    return null;
+    return (
+      <div className="p-4">
+        <div className="flex justify-between mb-4">
+          <h2 className="text-lg font-semibold">Preset Designs</h2>
+          <div className="text-xs text-gray-500">Sign in to manage presets</div>
+        </div>
+
+        {/* Active Preset Section - Keep visible for all users */}
+        <div className="mb-4">
+          <h3 className="text-sm font-medium mb-2">
+            Active Preset {activePreset ? "(1)" : "(0)"}
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {activePreset ? (
+              <Badge
+                key={activePreset.id}
+                variant="default"
+                className="group flex items-center gap-2 cursor-pointer pr-2"
+              >
+                <div className="w-4 h-4 rounded bg-gradient-to-r from-blue-400 to-purple-500" />
+                <span className="max-w-[60px] truncate">
+                  {activePreset.name || "Preset"}
+                </span>
+                <button
+                  onClick={() => handleRemovePreset()}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </Badge>
+            ) : (
+              <span className="text-xs text-gray-500">
+                No preset applied to canvas
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Sign in prompt */}
+        <div className="border border-dashed border-gray-300 dark:border-gray-700 rounded-lg p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+              <Sliders size={24} className="text-gray-500" />
+            </div>
+            <div>
+              <h3 className="text-sm font-medium mb-1">
+                Sign in to Access Presets
+              </h3>
+              <p className="text-xs text-gray-500 max-w-[200px]">
+                Sign in to create, manage, and save your favorite presets
+              </p>
+            </div>
+            <Link
+              href="/auth/sign-in"
+              className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-md transition-colors"
+              aria-label="sign-in"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

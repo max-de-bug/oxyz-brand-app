@@ -315,8 +315,8 @@ const ImageRender = React.memo(() => {
         return null;
       }
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
         return null;
       }
 
@@ -1128,8 +1128,8 @@ const ImageRender = React.memo(() => {
       if (textHandled) {
         // Force a render to show the selection
         renderCanvas();
-      return;
-    }
+        return;
+      }
 
       // If no text was handled, deselect all texts
       // Deselect legacy text
@@ -2050,7 +2050,7 @@ const ImageRender = React.memo(() => {
     cornerY: number,
     handleSize: number
   ) => {
-  return (
+    return (
       x >= cornerX - handleSize / 2 &&
       x <= cornerX + handleSize / 2 &&
       y >= cornerY - handleSize / 2 &&
@@ -2144,11 +2144,14 @@ const ImageRender = React.memo(() => {
         </div>
 
         {/* Empty state message */}
-        {!mainImage && logos.length === 0 && !textOverlay.isVisible && (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
-            Select an image or add text to display
-      </div>
-        )}
+        {!mainImage &&
+          logos.length === 0 &&
+          !textOverlay.isVisible &&
+          textOverlays.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-400 pointer-events-none">
+              Select an image or add text to display
+            </div>
+          )}
 
         {/* Controls overlay */}
         <div className="flex gap-2 justify-end mt-4">
