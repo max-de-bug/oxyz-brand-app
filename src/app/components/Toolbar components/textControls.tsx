@@ -37,7 +37,7 @@ const FONT_OPTIONS = [
 const DEFAULT_TEXT_VALUES = {
   text: "",
   isVisible: true,
-  color: "#000000",
+  color: "#FFFFFF",
   fontFamily: "ABCDiatype-Regular",
   fontSize: 24,
   isBold: false,

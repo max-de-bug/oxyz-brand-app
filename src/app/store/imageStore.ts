@@ -98,7 +98,13 @@ export const useImageStore = create<ImageState>((set, get) => ({
   clearMainImage: () => {
     // Get the preset store actions
     const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
-    const { setCurrentDesignId } = useDesignStore.getState();
+    const {
+      setCurrentDesignId,
+      setTextOverlay,
+      deleteText,
+      selectTextById,
+      clearTextOverlays,
+    } = useDesignStore.getState();
 
     set({
       imageUrl: null,
@@ -109,6 +115,30 @@ export const useImageStore = create<ImageState>((set, get) => ({
       sepia: 0,
       opacity: 100,
     });
+
+    // Clear legacy text overlay
+    setTextOverlay({
+      text: "",
+      isVisible: false,
+      color: "#FFFFFF",
+      fontFamily: "Arial",
+      fontSize: 24,
+      isBold: false,
+      isItalic: false,
+      position: { x: 50, y: 50 },
+      translationX: 0,
+      translationY: 0,
+      rotation: 0,
+      spacing: 0,
+      isSelected: false,
+    });
+    deleteText();
+
+    // Clear all text overlays from the textOverlays array
+    clearTextOverlays();
+
+    // Ensure no text is selected
+    selectTextById(null);
 
     setActivePreset(null);
     setSelectedPreset(null);

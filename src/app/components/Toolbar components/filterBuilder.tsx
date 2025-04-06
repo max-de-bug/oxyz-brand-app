@@ -9,6 +9,7 @@ import {
   Check,
   X,
   LogIn,
+  RotateCcw,
 } from "lucide-react";
 import { useImageStore } from "@/app/store/imageStore";
 import { Filter, FilterValues, useFilterStore } from "@/app/store/filterStore";
@@ -49,6 +50,7 @@ const FilterBuilder = () => {
   const { toast } = useToast();
   const {
     setFilter,
+    resetFilter,
     imageUrl,
     brightness,
     contrast,
@@ -206,6 +208,32 @@ const FilterBuilder = () => {
     }
   };
 
+  const handleResetFilters = () => {
+    // Reset filters to default values
+    resetFilter();
+
+    // Reset active filter in filter store
+    filterStore.setActiveFilter(null);
+    setSelectedFilter(null);
+
+    // Reset the new filter form to default values
+    setNewFilter({
+      ...newFilter,
+      filter: {
+        brightness: 100,
+        contrast: 100,
+        saturation: 100,
+        sepia: 0,
+        opacity: 100,
+      },
+    });
+
+    toast({
+      title: "Filters Reset",
+      description: "All filters have been reset to default values",
+    });
+  };
+
   // Render sign-in prompt for non-authenticated users
   if (!session) {
     return (
@@ -215,7 +243,17 @@ const FilterBuilder = () => {
             <Sliders size={16} />
             Filter Controls
           </h3>
-          <div className="text-xs text-gray-500">Sign in to save filters</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={resetFilter}
+              className="text-xs text-blue-500 hover:text-blue-700 flex items-center"
+              title="Reset filters to default values"
+            >
+              <RotateCcw size={14} className="mr-1" />
+              Reset
+            </button>
+            <div className="text-xs text-gray-500">Sign in to save filters</div>
+          </div>
         </div>
 
         {/* Basic filter controls for non-authenticated users */}
@@ -356,12 +394,22 @@ const FilterBuilder = () => {
 
   return (
     <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
-      <h3 className="text-sm font-medium mb-2 flex items-center gap-1">
-        <Sliders size={16} />
-        {selectedFilter
-          ? `Filter: ${selectedFilter.name}`
-          : "Create New Filter"}
-      </h3>
+      <div className="flex justify-between items-center mb-2">
+        <h3 className="text-sm font-medium flex items-center gap-1">
+          <Sliders size={16} />
+          {selectedFilter
+            ? `Filter: ${selectedFilter.name}`
+            : "Create New Filter"}
+        </h3>
+        <button
+          onClick={handleResetFilters}
+          className="text-xs text-blue-500 hover:text-blue-700 flex items-center"
+          title="Reset filters to default values"
+        >
+          <RotateCcw size={14} className="mr-1" />
+          Reset
+        </button>
+      </div>
 
       <div className="mb-3">
         <Label htmlFor="filter-name" className="text-xs mb-1 block">

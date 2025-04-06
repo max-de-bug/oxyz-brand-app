@@ -98,6 +98,7 @@ interface DesignState {
   deleteTextById: (id: string) => void;
   selectTextById: (id: string | null) => void;
   getSelectedText: () => TextOverlay | undefined;
+  clearTextOverlays: () => void;
 }
 
 export const presetFilters: PresetFilter[] = [
@@ -143,7 +144,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
             id: "default",
             text: "",
             isVisible: false,
-            color: "#000000",
+            color: "#FFFFFF",
             fontFamily: "ABCDiatype-Regular",
             fontSize: 24,
             isBold: false,
@@ -218,20 +219,20 @@ export const useDesignStore = create<DesignState>((set, get) => {
   };
 
   return {
-  rotation: 0,
-  colorValue: "#000000",
-  translationX: -500,
-  translationY: 10,
-  minSize: 0,
-  maxSize: 0,
-  spacing: 0,
+    rotation: 0,
+    colorValue: "#000000",
+    translationX: -500,
+    translationY: 10,
+    minSize: 0,
+    maxSize: 0,
+    spacing: 0,
     selectedPreset: presetFilters[0],
     imageUrl: "",
     textOverlay: {
       id: "default",
       text: "",
       isVisible: false,
-      color: "#000000",
+      color: "#FFFFFF",
       fontFamily: "ABCDiatype-Regular",
       fontSize: 24,
       isBold: false,
@@ -253,13 +254,13 @@ export const useDesignStore = create<DesignState>((set, get) => {
     aspectRatio: "4:3",
     setCurrentDesignId: (id) => set({ currentDesignId: id }),
 
-  setRotation: (rotation) => set({ rotation }),
-  setColorValue: (colorValue) => set({ colorValue }),
-  setTranslationX: (translationX) => set({ translationX }),
-  setTranslationY: (translationY) => set({ translationY }),
-  setMinSize: (minSize) => set({ minSize }),
-  setMaxSize: (maxSize) => set({ maxSize }),
-  setSpacing: (spacing) => set({ spacing }),
+    setRotation: (rotation) => set({ rotation }),
+    setColorValue: (colorValue) => set({ colorValue }),
+    setTranslationX: (translationX) => set({ translationX }),
+    setTranslationY: (translationY) => set({ translationY }),
+    setMinSize: (minSize) => set({ minSize }),
+    setMaxSize: (maxSize) => set({ maxSize }),
+    setSpacing: (spacing) => set({ spacing }),
     setSelectedPreset: (preset) => set({ selectedPreset: preset }),
     setImageUrl: (imageUrl, imageId) => set({ imageUrl, imageId }),
     setLogoId: (logoId) => set({ logoId }),
@@ -554,7 +555,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
           id,
           text,
           isVisible: true,
-          color: "#000000",
+          color: "#FFFFFF",
           fontFamily: "ABCDiatype-Regular",
           fontSize: 24,
           isBold: false,
@@ -603,5 +604,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
     getSelectedText: () => {
       return get().textOverlays.find((text) => text.isSelected);
     },
+
+    clearTextOverlays: () => set({ textOverlays: [] }),
   };
 });

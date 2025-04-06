@@ -578,10 +578,10 @@ const ImageRender = React.memo(() => {
             }, // Top-center
             {
               x: textRect.x + textRect.width,
-              y: textRect.y,
+              y: textRect.y + 20, // Move resize handle down to avoid conflict with delete button
               cursor: "nesw-resize",
               direction: "topRight",
-            }, // Top-right
+            }, // Top-right (moved down)
             {
               x: textRect.x,
               y: textRect.y + textRect.height / 2,
@@ -991,7 +991,8 @@ const ImageRender = React.memo(() => {
           mouseY >= textRect.y &&
           mouseY <= textRect.y + textRect.height
         ) {
-          // Check if click is on delete button when text is selected
+          // First check if the text is selected and the click is on delete button
+          // This should take precedence over everything else
           if (currentText.isSelected) {
             const deleteButtonX = textRect.x + textRect.width;
             const deleteButtonY = textRect.y;
@@ -1003,6 +1004,7 @@ const ImageRender = React.memo(() => {
             );
 
             if (distToDeleteButton <= deleteButtonRadius) {
+              console.log("Delete button clicked for text:", currentText.text);
               // Delete the text
               if (currentText === textOverlay) {
                 // Handle legacy text
@@ -1015,6 +1017,7 @@ const ImageRender = React.memo(() => {
               break;
             }
 
+            // If not deleting, see if we're clicking on a resize handle
             // Check for resize handles
             const handleSize = 8;
             const handles = [
@@ -1030,9 +1033,9 @@ const ImageRender = React.memo(() => {
               }, // Top-center
               {
                 x: textRect.x + textRect.width,
-                y: textRect.y,
+                y: textRect.y + 20, // Moved down to avoid conflict with delete button
                 direction: "topRight",
-              }, // Top-right
+              }, // Top-right (moved down)
               {
                 x: textRect.x,
                 y: textRect.y + textRect.height / 2,
@@ -1091,6 +1094,7 @@ const ImageRender = React.memo(() => {
             if (textHandled) break;
           }
 
+          // If we reach here, we're not deleting or resizing, so we're selecting/dragging
           // Select the text and prepare for dragging
           if (currentText === textOverlay) {
             // Handle legacy text
@@ -1300,6 +1304,64 @@ const ImageRender = React.memo(() => {
       // Update cursor based on what's under it
       canvas.style.cursor = "default";
 
+      // Check for hover over text delete buttons first (highest priority)
+      let textDeleteButtonHovered = false;
+
+      // First check all text overlays in the array
+      for (let i = textOverlays.length - 1; i >= 0; i--) {
+        const text = textOverlays[i];
+        if (!text.isVisible || !text.text || !text.isSelected) continue;
+
+        const textRect = calculateTextRect(canvas, text);
+        if (!textRect) continue;
+
+        // Check delete button at top right
+        const deleteButtonX = textRect.x + textRect.width;
+        const deleteButtonY = textRect.y;
+        const deleteButtonRadius = 10;
+
+        const distToDeleteButton = Math.sqrt(
+          Math.pow(currentMouseX - deleteButtonX, 2) +
+            Math.pow(currentMouseY - deleteButtonY, 2)
+        );
+
+        if (distToDeleteButton <= deleteButtonRadius) {
+          canvas.style.cursor = "pointer";
+          textDeleteButtonHovered = true;
+          break;
+        }
+      }
+
+      // Check legacy text overlay if no array text delete button was hovered
+      if (
+        !textDeleteButtonHovered &&
+        textOverlay.isVisible &&
+        textOverlay.text &&
+        textOverlay.isSelected
+      ) {
+        const textRect = calculateTextRect(canvas, textOverlay);
+        if (textRect) {
+          const deleteButtonX = textRect.x + textRect.width;
+          const deleteButtonY = textRect.y;
+          const deleteButtonRadius = 10;
+
+          const distToDeleteButton = Math.sqrt(
+            Math.pow(currentMouseX - deleteButtonX, 2) +
+              Math.pow(currentMouseY - deleteButtonY, 2)
+          );
+
+          if (distToDeleteButton <= deleteButtonRadius) {
+            canvas.style.cursor = "pointer";
+            textDeleteButtonHovered = true;
+          }
+        }
+      }
+
+      // If a text delete button is hovered, don't process other hover events
+      if (textDeleteButtonHovered) {
+        return;
+      }
+
       // Calculate logo rects
       const logoRects = calculateLogoRects(canvas);
 
@@ -1359,17 +1421,97 @@ const ImageRender = React.memo(() => {
         }
       }
 
-      // Check for hover over text
-      if (textOverlay.isVisible && textOverlay.text) {
-        const textRect = calculateTextRect(canvas, textOverlay);
-        if (
-          textRect &&
-          currentMouseX >= textRect.x &&
-          currentMouseX <= textRect.x + textRect.width &&
-          currentMouseY >= textRect.y &&
-          currentMouseY <= textRect.y + textRect.height
-        ) {
-          canvas.style.cursor = "move";
+      // Check for hover over text resize handles
+      if (!hoveredLogo) {
+        // Create a combined array of all text overlays (including legacy one)
+        const allTextOverlays = [...textOverlays];
+        if (textOverlay.isVisible && textOverlay.text) {
+          allTextOverlays.push(textOverlay);
+        }
+
+        for (let i = allTextOverlays.length - 1; i >= 0; i--) {
+          const text = allTextOverlays[i];
+          if (!text.isVisible || !text.text || !text.isSelected) continue;
+
+          const textRect = calculateTextRect(canvas, text);
+          if (!textRect) continue;
+
+          // Check for resize handles
+          const handleSize = 8;
+          const handles = [
+            {
+              x: textRect.x,
+              y: textRect.y,
+              cursor: "nwse-resize",
+              direction: "topLeft",
+            }, // Top-left
+            {
+              x: textRect.x + textRect.width / 2,
+              y: textRect.y,
+              cursor: "ns-resize",
+              direction: "top",
+            }, // Top-center
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y + 20, // Move resize handle down to avoid conflict with delete button
+              cursor: "nesw-resize",
+              direction: "topRight",
+            }, // Top-right (moved down)
+            {
+              x: textRect.x,
+              y: textRect.y + textRect.height / 2,
+              cursor: "ew-resize",
+              direction: "left",
+            }, // Middle-left
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y + textRect.height / 2,
+              cursor: "ew-resize",
+              direction: "right",
+            }, // Middle-right
+            {
+              x: textRect.x,
+              y: textRect.y + textRect.height,
+              cursor: "nesw-resize",
+              direction: "bottomLeft",
+            }, // Bottom-left
+            {
+              x: textRect.x + textRect.width / 2,
+              y: textRect.y + textRect.height,
+              cursor: "ns-resize",
+              direction: "bottom",
+            }, // Bottom-center
+            {
+              x: textRect.x + textRect.width,
+              y: textRect.y + textRect.height,
+              cursor: "nwse-resize",
+              direction: "bottomRight",
+            }, // Bottom-right
+          ];
+
+          // Check for hover over any resize handle
+          for (const handle of handles) {
+            if (
+              currentMouseX >= handle.x - handleSize &&
+              currentMouseX <= handle.x + handleSize &&
+              currentMouseY >= handle.y - handleSize &&
+              currentMouseY <= handle.y + handleSize
+            ) {
+              canvas.style.cursor = handle.cursor;
+              break;
+            }
+          }
+
+          // Check for hover over text
+          if (
+            currentMouseX >= textRect.x &&
+            currentMouseX <= textRect.x + textRect.width &&
+            currentMouseY >= textRect.y &&
+            currentMouseY <= textRect.y + textRect.height &&
+            canvas.style.cursor === "default" // Only update if not already hovering over a handle
+          ) {
+            canvas.style.cursor = "move";
+          }
         }
       }
 
@@ -1967,7 +2109,6 @@ const ImageRender = React.memo(() => {
     ) {
       clearMainImage();
       // Also clear the current design selection
-      useDesignStore.getState().setCurrentDesignId(null);
     }
   };
 

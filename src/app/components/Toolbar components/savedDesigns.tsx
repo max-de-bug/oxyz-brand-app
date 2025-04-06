@@ -212,7 +212,7 @@ const SavedDesigns = () => {
       useDesignStore.getState().setTextOverlay({
         text: "",
         isVisible: false,
-        color: "#000000",
+        color: "#FFFFFF",
         fontFamily: "Arial",
         fontSize: 24,
         isBold: false,
