@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Loader2 } from "lucide-react";
 
-export default function AuthCallbackPage() {
+// Create a separate component that uses useSearchParams
+function CallbackHandler() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
@@ -85,32 +86,6 @@ export default function AuthCallbackPage() {
           <div className="space-y-6 text-center">
             <div className="relative">
               <Loader2 className="w-12 h-12 mx-auto animate-spin text-gray-900 dark:text-gray-100" />
-              {/* Progress circle */}
-              {/* <div className="absolute inset-0">
-                <svg className="w-12 h-12" viewBox="0 0 100 100">
-                  <circle
-                    className="text-gray-200 dark:text-gray-700"
-                    strokeWidth="8"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="42"
-                    cx="50"
-                    cy="50"
-                  />
-                  <circle
-                    className="text-blue-600 dark:text-blue-500 transition-all duration-300"
-                    strokeWidth="8"
-                    strokeDasharray={264}
-                    strokeDashoffset={264 - (progress / 100) * 264}
-                    strokeLinecap="round"
-                    stroke="currentColor"
-                    fill="transparent"
-                    r="42"
-                    cx="50"
-                    cy="50"
-                  />
-                </svg>
-              </div> */}
             </div>
 
             <div className="space-y-2">
@@ -143,5 +118,37 @@ export default function AuthCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function CallbackLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="w-full max-w-md p-8 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+        <div className="space-y-6 text-center">
+          <div className="relative">
+            <Loader2 className="w-12 h-12 mx-auto animate-spin text-gray-900 dark:text-gray-100" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Preparing Authentication
+            </h2>
+            <p className="text-gray-500 dark:text-gray-400">
+              Loading authentication details...
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component with Suspense
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<CallbackLoading />}>
+      <CallbackHandler />
+    </Suspense>
   );
 }
