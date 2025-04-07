@@ -131,9 +131,17 @@ const PresetDesigns = () => {
         <div
           key={preset.id}
           onClick={() => handlePresetClick(preset)}
-          className={`relative p-2 border rounded transition-all cursor-pointer
-          ${isSelected ? "border-blue-500" : "border-gray-200"}
-          ${preset.isDefault ? "bg-blue-50" : ""}
+          className={`relative p-2 border rounded transition-all cursor-pointer w-[140px] h-[200px] flex flex-col
+          ${
+            isSelected
+              ? "border-blue-500"
+              : "border-gray-200 dark:border-gray-700"
+          }
+          ${
+            preset.isDefault
+              ? "bg-blue-50 dark:bg-blue-900/20"
+              : "bg-white dark:bg-gray-800"
+          }
           ${!isSelected ? "hover:border-blue-300 hover:shadow-md" : ""}`}
         >
           <div
@@ -156,22 +164,17 @@ const PresetDesigns = () => {
             )}
           </div>
 
-          <div className="group">
+          <div className="group flex-grow">
             {preset.url ? (
-              <div className="flex justify-center p-2 bg-gray-50 rounded mb-2">
+              <div className="flex justify-center items-center p-2 bg-gray-50 dark:bg-gray-900 rounded mb-2 h-[100px]">
                 <img
                   src={preset.url}
                   alt={preset.name || "Preset"}
-                  className="object-contain max-h-24 transition-transform group-hover:scale-105"
-                  style={{
-                    maxWidth: "100%",
-                    filter: `
-                    brightness(${preset.filter?.brightness || 100}%) 
-                    contrast(${preset.filter?.contrast || 100}%) 
-                    saturate(${preset.filter?.saturation || 100}%) 
-                    sepia(${preset.filter?.sepia || 0}%)
-                  `,
-                    opacity: `${(preset.filter?.opacity || 100) / 100}`,
+                  className="object-contain max-h-24 max-w-[90%] transition-transform group-hover:scale-105"
+                  loading="lazy"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "/preset-placeholder.jpg";
                   }}
                 />
               </div>
@@ -193,7 +196,7 @@ const PresetDesigns = () => {
 
           <button
             onClick={(e) => handlePresetClick(preset, e)}
-            className={`w-full text-xs p-2 rounded flex items-center justify-center gap-1
+            className={`w-full text-xs p-2 rounded flex items-center justify-center gap-1 mt-auto
             ${
               isSelected
                 ? "bg-blue-500 hover:bg-blue-600 text-white"
@@ -215,6 +218,38 @@ const PresetDesigns = () => {
     },
     [isPresetSelected, handlePresetClick, session, handleDeletePreset]
   );
+
+  // Loading state
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-12 min-h-[200px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 size={24} className="animate-spin text-blue-500" />
+          <p className="text-sm text-gray-500">Loading presets...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex justify-center items-center py-12 min-h-[200px]">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-red-500">Error loading presets</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchCloudinaryPresets()}
+            className="mt-2"
+          >
+            <RefreshCw size={14} className="mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   if (!session) {
     return (

@@ -29,6 +29,7 @@ const ImageUploader = () => {
     data: imagesData,
     isLoading: isLoadingImages,
     refetch: refetchImages,
+    error,
   } = useUserImages(session?.user?.id, {
     onSuccess: (data: { images?: any[] }) => {
       // Update Zustand store with fetched images
@@ -220,6 +221,38 @@ const ImageUploader = () => {
       deleteImageMutation.isPending,
     ]
   );
+
+  // Loading state
+  if (isLoadingImages) {
+    return (
+      <div className="flex justify-center items-center py-12 min-h-[200px]">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 size={24} className="animate-spin text-blue-500" />
+          <p className="text-sm text-gray-500">Loading images...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="flex justify-center items-center py-12 min-h-[200px]">
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm text-red-500">Error loading images</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetchImages()}
+            className="mt-2"
+          >
+            <RefreshCw size={14} className="mr-2" />
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4">

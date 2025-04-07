@@ -36,7 +36,7 @@ const Footer = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xs font-medium text-[#888888]">O.XYZ Designer</h2>
-          <p className="text-[10px] text-[#555555] mt-1">Version 1.0.0</p>
+          <p className="text-[10px] text-[#555555] mt-1">Beta Version 1.0.0</p>
         </div>
 
         <div className="flex items-center gap-3">

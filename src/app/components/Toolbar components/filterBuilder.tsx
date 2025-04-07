@@ -21,7 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
 import {
   useFilters,
@@ -535,15 +534,25 @@ const FilterBuilder = () => {
             </>
           )}
         </Button>
+
         {!newFilter.name && (
-          <p className="text-xs text-red-500 mt-1">
-            Please enter a filter name
-          </p>
+          <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <X size={14} className="text-red-500 flex-shrink-0" />
+            <p className="text-xs text-red-600 dark:text-red-400">
+              Please enter a name for your filter
+            </p>
+          </div>
         )}
+
         {createFilterMutation.isError && (
-          <p className="text-xs text-red-500 mt-1">
-            Error creating filter. Please try again.
-          </p>
+          <div className="flex items-center gap-2 mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+            <X size={14} className="text-red-500 flex-shrink-0" />
+            <p className="text-xs text-red-600 dark:text-red-400">
+              {createFilterMutation.error instanceof Error
+                ? createFilterMutation.error.message
+                : "Error creating filter. Please try again."}
+            </p>
+          </div>
         )}
       </div>
 
