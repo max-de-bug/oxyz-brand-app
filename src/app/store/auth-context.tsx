@@ -133,7 +133,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/auth/callback`
+              : `${
+                  process.env.NEXT_PUBLIC_SITE_URL ||
+                  "https://oxyz-brand.vercel.app"
+                }/auth/callback`,
         },
       });
 

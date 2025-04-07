@@ -47,8 +47,12 @@ const ImageRender = React.memo(() => {
   const [resizeStartPoint, setResizeStartPoint] = useState({ x: 0, y: 0 });
 
   // Add state variables for viewport dimensions at the beginning of the component
-  const [viewportWidth, setViewportWidth] = useState(window.innerWidth);
-  const [viewportHeight, setViewportHeight] = useState(window.innerHeight);
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
+  const [viewportHeight, setViewportHeight] = useState(
+    typeof window !== "undefined" ? window.innerHeight : 800
+  );
 
   // Add state for tracking the dragged text ID
   const [draggedTextId, setDraggedTextId] = useState<string | null>(null);
@@ -119,7 +123,8 @@ const ImageRender = React.memo(() => {
     if (
       mainImage &&
       mainImage.naturalWidth > 0 &&
-      mainImage.naturalHeight > 0
+      mainImage.naturalHeight > 0 &&
+      typeof window !== "undefined"
     ) {
       // Calculate the aspect ratio of the loaded image
       const imageAspectRatio = mainImage.naturalWidth / mainImage.naturalHeight;
@@ -179,6 +184,8 @@ const ImageRender = React.memo(() => {
 
   // Add resize listener to handle window resizing
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const handleResize = () => {
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
@@ -222,6 +229,7 @@ const ImageRender = React.memo(() => {
     // Call once to initialize
     handleResize();
 
+    // Cleanup
     return () => {
       window.removeEventListener("resize", handleResize);
     };

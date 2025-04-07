@@ -1,19 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import { Loader2 } from "lucide-react";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClientComponentClient();
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const { searchParams } = new URL(window.location.href);
       const code = searchParams.get("code");
       const next = searchParams.get("next") || "/";
 
@@ -48,7 +48,7 @@ export default function AuthCallbackPage() {
     };
 
     handleAuthCallback();
-  }, [router, supabase.auth]);
+  }, [router, searchParams, supabase.auth]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
