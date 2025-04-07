@@ -130,16 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
+      // Determine the correct callback URL
+      const callbackURL =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/callback`
+          : `${
+              process.env.NEXT_PUBLIC_SITE_URL ||
+              "https://oxyz-brand-app.vercel.app"
+            }/auth/callback`;
+
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo:
-            typeof window !== "undefined"
-              ? `${window.location.origin}/auth/callback`
-              : `${
-                  process.env.NEXT_PUBLIC_SITE_URL ||
-                  "https://oxyz-brand.vercel.app"
-                }/auth/callback`,
+          emailRedirectTo: callbackURL,
         },
       });
 

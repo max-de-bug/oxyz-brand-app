@@ -16,7 +16,14 @@ function CallbackHandler() {
   useEffect(() => {
     const handleAuthCallback = async () => {
       const code = searchParams.get("code");
-      const next = searchParams.get("next") || "/";
+
+      // Check for a next parameter and use the full URL if available
+      // Otherwise, redirect to the homepage of the current domain
+      const next =
+        searchParams.get("next") ||
+        (typeof window !== "undefined" && window.location.origin) ||
+        process.env.NEXT_PUBLIC_SITE_URL ||
+        "https://oxyz-brand-app.vercel.app";
 
       if (!code) {
         setError("No authentication code found");
@@ -37,7 +44,19 @@ function CallbackHandler() {
         // Final redirect with a slight delay for smooth transition
         setTimeout(() => {
           setProgress(100);
-          router.push(next);
+
+          // Check if next is a relative path (starts with /) or an absolute URL
+          if (next.startsWith("/")) {
+            router.push(next);
+          } else {
+            // For absolute URLs, use window.location for a full redirect
+            // This preserves the domain when redirecting
+            if (typeof window !== "undefined") {
+              window.location.href = next;
+            } else {
+              router.push("/");
+            }
+          }
         }, 500);
       } catch (err) {
         console.error("Error exchanging code for session:", err);
