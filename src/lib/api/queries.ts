@@ -40,17 +40,40 @@ export function useUserProfile() {
       try {
         const response = await apiClient.get<UserProfile>("/users/profile");
         console.log("Response UserProfile", response);
+
+        // Ensure we have a valid response with a name property
+        if (!response || !response.name) {
+          console.warn(
+            "User profile response is missing name property:",
+            response
+          );
+        }
+
         return response;
       } catch (error) {
         console.error("Error fetching user profile:", error);
         throw error;
       }
     },
-    retry: 1,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    // Skip the query if there's no token (user is not authenticated)
     enabled: !!token,
+    retry: 1,
+    staleTime: 0, // Always consider data stale, forcing refetch on mount
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    // Add a default value to prevent undefined errors
+    initialData: {
+      id: "",
+      name: "",
+      email: "",
+      image: null,
+      createdAt: "",
+      updatedAt: "",
+    } as UserProfile,
+    // Always refetch on window focus to ensure fresh data
+    refetchOnWindowFocus: true,
+    // Refetch on reconnect to ensure data is up to date
+    refetchOnReconnect: true,
+    // Always refetch on mount to ensure fresh data when navigating to the page
+    refetchOnMount: "always", // Force refetch on every mount
   });
 }
 
@@ -625,9 +648,34 @@ export const useSaveDesign = () => {
 
   return useMutation({
     mutationFn: async (design: SaveDesign) => {
+      // Create a properly formatted payload that matches the server's DTO
+      const payload = {
+        name: design.name,
+        imageUrl: design.imageUrl,
+        aspectRatio: design.aspectRatio,
+        // Only include filter if it has values
+        ...(design.filter &&
+        Object.values(design.filter).some((val) => val !== undefined)
+          ? { filter: design.filter }
+          : {}),
+        // Only include textOverlay if it exists and has required fields
+        ...(design.textOverlay &&
+        design.textOverlay.text &&
+        design.textOverlay.color &&
+        design.textOverlay.fontFamily
+          ? { textOverlay: design.textOverlay }
+          : {}),
+        // Only include logos if the array exists and has items
+        ...(design.logos && design.logos.length > 0
+          ? { logos: design.logos }
+          : {}),
+      };
+
+      console.log("Saving design with payload:", payload);
+
       const response = await apiClient.post<{ id: string; url: string }>(
         "designs",
-        design
+        payload
       );
       return response;
     },

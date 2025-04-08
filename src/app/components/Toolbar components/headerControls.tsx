@@ -311,17 +311,18 @@ const HeaderControls = () => {
 
   // Get display name from user profile or fallback to email
   const getDisplayName = () => {
-    if (userProfile?.name) return userProfile.name;
-    if (userProfile?.email) return userProfile.email.split("@")[0];
+    if (userProfile?.name) return userProfile?.name;
     if (user?.email) return user.email.split("@")[0];
     return "Guest";
   };
 
   const displayName = getDisplayName();
 
+  // Log the user profile data for debugging
+
   // Get profile image - prioritize user profile image, fall back to default
   const getProfileImage = () => {
-    if (userProfile?.image) return userProfile.image;
+    if (userProfile?.image) return userProfile?.image;
     if (defaultUserImage?.url) return defaultUserImage.url;
     return null;
   };
@@ -471,7 +472,7 @@ const HeaderControls = () => {
               {renderAvatarContent("small")}
             </div>
             <span className="text-sm font-medium text-neutral-800 dark:text-neutral-200 max-w-[120px] truncate hidden sm:inline-block">
-              {isLoadingProfile ? "Loading..." : displayName}
+              {isLoadingProfile ? "Loading..." : displayName || "Guest"}
             </span>
             <ChevronDown
               size={14}
@@ -560,7 +561,7 @@ const HeaderControls = () => {
                         </div>
                         {!isLoadingProfile && userProfile?.email && (
                           <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate mt-0.5">
-                            {userProfile.email}
+                            {userProfile?.email}
                           </p>
                         )}
                       </div>

@@ -99,21 +99,53 @@ const SavedDesigns = () => {
         id: `design-${Date.now()}`, // Add generated id to fix the type error
         imageUrl: capturedImage, // Send the captured canvas image
         name: `Design ${(savedDesigns as SavedDesign[]).length + 1}`,
-        filter: {
-          brightness,
-          contrast,
-          saturation,
-          sepia,
-          opacity,
-        },
-        textOverlay: textOverlay.isVisible ? textOverlay : undefined,
-        logos: logos.map((logo) => ({
-          url: logo.url,
-          position: logo.position,
-          size: logo.size,
-        })),
-        aspectRatio,
+        aspectRatio: aspectRatio || "1:1", // Ensure aspectRatio is always provided
+        // Only include filter if it has values
+        ...(brightness !== undefined ||
+        contrast !== undefined ||
+        saturation !== undefined ||
+        sepia !== undefined ||
+        opacity !== undefined
+          ? {
+              filter: {
+                brightness: brightness || 0,
+                contrast: contrast || 0,
+                saturation: saturation || 0,
+                sepia: sepia || 0,
+                opacity: opacity || 0,
+              },
+            }
+          : {}),
+        // Only include textOverlay if it's visible and has required fields
+        ...(textOverlay.isVisible &&
+        textOverlay.text &&
+        textOverlay.color &&
+        textOverlay.fontFamily
+          ? {
+              textOverlay: {
+                text: textOverlay.text,
+                isVisible: textOverlay.isVisible,
+                color: textOverlay.color,
+                fontFamily: textOverlay.fontFamily,
+                fontSize: textOverlay.fontSize || 16,
+                isBold: textOverlay.isBold || false,
+                isItalic: textOverlay.isItalic || false,
+              },
+            }
+          : {}),
+        // Only include logos if there are any
+        ...(logos.length > 0
+          ? {
+              logos: logos.map((logo) => ({
+                url: logo.url,
+                position: logo.position || { x: 0, y: 0 },
+                size: logo.size || 100,
+              })),
+            }
+          : {}),
       };
+
+      console.log("Saving design with payload:", designPayload);
 
       // Save the design
       await saveDesignMutation.mutateAsync(designPayload);

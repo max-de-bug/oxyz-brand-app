@@ -19,6 +19,11 @@ const getAuthHeaders = async () => {
 
   if (session?.access_token) {
     headers["Authorization"] = `Bearer ${session.access_token}`;
+    console.log("Auth token found, setting Authorization header");
+  } else {
+    console.warn(
+      "No auth token found, request will be made without Authorization header"
+    );
   }
 
   return headers;
@@ -32,6 +37,8 @@ export const apiClient = {
     try {
       const url = formatEndpoint(endpoint);
       const headers = await getAuthHeaders();
+
+      console.log(`GET request to ${url} with headers:`, headers);
 
       const response = await fetch(url, { headers });
 
@@ -50,7 +57,9 @@ export const apiClient = {
         throw new Error(error.message || `API error: ${response.status}`);
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log(`GET response from ${url}:`, data);
+      return data;
     } catch (error) {
       console.error(`Error fetching ${endpoint}:`, error);
       throw error;

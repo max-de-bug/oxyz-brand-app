@@ -46,7 +46,15 @@ export default function AuthButton() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Get current username from user profile or fallback to email
-  const currentUsername = userProfile?.name || user?.email?.split("@")[0] || "";
+  const currentUsername =
+    userProfile?.name || user?.email?.split("@")[0] || "User";
+
+  // Log the user profile data for debugging
+  useEffect(() => {
+    if (userProfile) {
+      console.log("User profile in AuthButton:", userProfile);
+    }
+  }, [userProfile]);
 
   // Set initial value of newUsername when dialog opens
   useEffect(() => {
@@ -141,7 +149,7 @@ export default function AuthButton() {
         <Avatar className="h-8 w-8">
           <AvatarImage
             src={userProfile?.image || defaultImage?.url || ""}
-            alt={userProfile?.name || user.email || ""}
+            alt={userProfile?.name || ""}
             onError={(e) => {
               // If user image fails to load, fall back to default image
               if (defaultImage?.url) {
