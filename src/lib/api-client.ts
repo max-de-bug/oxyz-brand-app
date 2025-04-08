@@ -33,7 +33,12 @@ export const apiClient = {
       const url = formatEndpoint(endpoint);
       const headers = await getAuthHeaders();
 
-      const response = await fetch(url, { headers });
+      console.log(`GET request to ${url} with headers:`, headers);
+
+      const response = await fetch(url, {
+        headers,
+        credentials: "include", // Include credentials in the request
+      });
 
       if (response.status === 401) {
         window.location.href = "/auth/sign-in";
@@ -75,6 +80,7 @@ export const apiClient = {
         method: "POST",
         headers,
         body: JSON.stringify(data),
+        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -112,6 +118,7 @@ export const apiClient = {
         method: "PUT",
         headers,
         body: JSON.stringify(data),
+        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -142,6 +149,7 @@ export const apiClient = {
       const response = await fetch(url, {
         method: "DELETE",
         headers,
+        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -189,6 +197,7 @@ export const apiClient = {
         method: "POST",
         headers,
         body: formData,
+        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -220,6 +229,7 @@ export const apiClient = {
         method: "PATCH",
         headers,
         body: JSON.stringify(data),
+        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
