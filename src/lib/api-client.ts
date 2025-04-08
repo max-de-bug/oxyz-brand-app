@@ -4,8 +4,16 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 const formatEndpoint = (endpoint: string) => {
   // Make sure endpoint starts with a slash
   const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  // ... existing code ...
+  // Make sure endpoint starts with a slash
+  // Handle case where API_BASE_URL already includes the /api prefix
+  if (API_BASE_URL.endsWith("/api") && path.startsWith("/api/")) {
+    return `${API_BASE_URL}${path.substring(4)}`;
+  }
+
   return `${API_BASE_URL}${path}`;
 };
+// ... existing code ...
 
 const getAuthHeaders = async () => {
   const supabase = createClientComponentClient();
@@ -33,12 +41,7 @@ export const apiClient = {
       const url = formatEndpoint(endpoint);
       const headers = await getAuthHeaders();
 
-      console.log(`GET request to ${url} with headers:`, headers);
-
-      const response = await fetch(url, {
-        headers,
-        credentials: "include", // Include credentials in the request
-      });
+      const response = await fetch(url, { headers });
 
       if (response.status === 401) {
         window.location.href = "/auth/sign-in";
@@ -80,7 +83,6 @@ export const apiClient = {
         method: "POST",
         headers,
         body: JSON.stringify(data),
-        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -118,7 +120,6 @@ export const apiClient = {
         method: "PUT",
         headers,
         body: JSON.stringify(data),
-        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -149,7 +150,6 @@ export const apiClient = {
       const response = await fetch(url, {
         method: "DELETE",
         headers,
-        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -197,7 +197,6 @@ export const apiClient = {
         method: "POST",
         headers,
         body: formData,
-        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
@@ -229,7 +228,6 @@ export const apiClient = {
         method: "PATCH",
         headers,
         body: JSON.stringify(data),
-        credentials: "include", // Include credentials in the request
       });
 
       if (response.status === 401) {
