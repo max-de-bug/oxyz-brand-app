@@ -130,14 +130,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null);
 
     try {
-      // Determine the correct callback URL
-      const callbackURL =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/callback`
-          : `${
-              process.env.NEXT_PUBLIC_SITE_URL ||
-              "https://oxyz-brand-app.vercel.app"
-            }/auth/callback`;
+      // Get the base URL from environment variable or default to production URL
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "localhost:3000";
+
+      // Construct the callback URL
+      const callbackURL = `${baseUrl}/auth/callback`;
+
+      console.log("Using callback URL:", callbackURL);
 
       const { error } = await supabase.auth.signInWithOtp({
         email,
