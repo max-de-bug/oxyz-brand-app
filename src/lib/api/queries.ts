@@ -79,6 +79,8 @@ export function useUserProfile() {
 
 // Query hook for fetching default user image
 export function useDefaultUserImage() {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   return useQuery<DefaultUserImage>({
     queryKey: ["user", "defaults", "image"],
     queryFn: async () => {
@@ -95,6 +97,7 @@ export function useDefaultUserImage() {
     staleTime: 5 * 60 * 1000, // 5 minutes cache
     gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
     retry: 2,
+    enabled: !!token,
   });
 }
 
