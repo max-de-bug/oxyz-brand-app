@@ -17,13 +17,19 @@ function CallbackHandler() {
     const handleAuthCallback = async () => {
       const code = searchParams.get("code");
 
+      // Get the current origin (domain) for the callback
+      const currentOrigin =
+        typeof window !== "undefined" ? window.location.origin : "";
+
+      // Use environment-specific URL or fallback to current origin
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || currentOrigin;
+
       // Check for a next parameter and use the full URL if available
       // Otherwise, redirect to the homepage of the current domain
-      const next =
-        searchParams.get("next") ||
-        (typeof window !== "undefined" && window.location.origin) ||
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        "https://oxyz-brand-app.vercel.app";
+      const next = searchParams.get("next") || siteUrl;
+
+      console.log("Using callback URL:", siteUrl);
+      console.log("Redirecting to:", next);
 
       if (!code) {
         setError("No authentication code found");
