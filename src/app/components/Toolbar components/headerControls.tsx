@@ -455,9 +455,7 @@ const HeaderControls = () => {
       {/* Top tier - User profile */}
       <div className="flex justify-between items-center px-6 py-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm border-b border-neutral-100/50 dark:border-neutral-800/50 relative z-20">
         {/* Left side - Theme toggle */}
-        <div>
-          <ThemeToggle />
-        </div>
+        <div></div>
 
         {/* Right side - User profile */}
         <div className="relative" ref={userMenuRef}>

@@ -104,6 +104,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(newSession);
       setUser(newSession?.user || null);
       setIsLoading(false);
+
+      // Add this code to set/remove the accessToken in localStorage
+      if (newSession && event === "SIGNED_IN") {
+        console.log("User signed in, setting access token in localStorage");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("accessToken", "true");
+        }
+      } else if (event === "SIGNED_OUT") {
+        console.log("User signed out, removing access token from localStorage");
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("accessToken");
+        }
+      }
     });
 
     // Handle tab visibility changes for better session synchronization
