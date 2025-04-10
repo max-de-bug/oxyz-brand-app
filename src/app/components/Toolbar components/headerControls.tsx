@@ -252,8 +252,8 @@ const HeaderControls = () => {
 
       // Open Twitter compose window
       const tweetText = copied
-        ? "Check out my design created with OXYZ Media App! 🎨\n\nYour image has been copied to clipboard - just paste (Ctrl+V) it into your tweet!"
-        : "Check out my design created with OXYZ Media App! 🎨";
+        ? "Check out my design created with O.XYZ Designer! 🎨\n\nYour image has been copied to clipboard - just paste (Ctrl+V) it into your tweet!"
+        : "Check out my design created with O.XYZ Designer! 🎨";
 
       const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
         tweetText
