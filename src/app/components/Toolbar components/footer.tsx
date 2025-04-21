@@ -39,6 +39,18 @@ const Footer = () => {
           <p className="text-[10px] text-[#555555] mt-1">Beta Version 1.0.0</p>
         </div>
 
+        <div className="text-[10px] text-[#555555]">
+          Created by{" "}
+          <a
+            href="https://x.com/CryptoMax_07"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#888888] hover:text-white transition-colors"
+          >
+            Connor
+          </a>
+        </div>
+
         <div className="flex items-center gap-3">
           <a
             href="https://discord.com/invite/oxyz"

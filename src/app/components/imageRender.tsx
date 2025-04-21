@@ -2071,14 +2071,15 @@ const ImageRender = React.memo(() => {
             break;
 
           case "Delete":
-          case "Backspace":
             if (isLegacyText) {
               deleteText();
             } else {
               deleteTextById(selectedText.id);
             }
             break;
-
+          case "Backspace":
+            // Don't delete text on backspace, only on Delete key
+            break;
           case "Escape":
             if (isLegacyText) {
               selectText(false);

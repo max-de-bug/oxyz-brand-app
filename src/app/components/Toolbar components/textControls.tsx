@@ -29,8 +29,6 @@ const FONT_OPTIONS = [
   { value: "NeueMachina-Medium", label: "Neue Machina Medium" },
   { value: "NeueMachina-Ultrabold", label: "Neue Machina Ultrabold" },
   { value: "NeueMachina-Ultralight", label: "Neue Machina Ultralight" },
-  { value: "Space Grotesk", label: "Space Grotesk" },
-  { value: "Inter", label: "Inter" },
 ];
 
 // Default values for when no text is selected
@@ -178,6 +176,7 @@ const TextControls = () => {
     } else if (e.key === "Escape") {
       cancelEditing();
     }
+    // Allow all other keys (including Backspace) to work normally
   };
 
   // Get the active text properties (selected text or defaults)
