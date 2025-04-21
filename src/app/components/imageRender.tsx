@@ -313,7 +313,7 @@ const ImageRender = React.memo(() => {
     [logos, logoImages]
   );
 
-  // Optimize calculateTextRect to be more efficient
+  // Update the calculateTextRect function to handle rotation differently
   const calculateTextRect = useCallback(
     (
       canvas: HTMLCanvasElement,
@@ -359,7 +359,7 @@ const ImageRender = React.memo(() => {
         (canvas.height * currentText.position.y) / 100 +
         (currentText.translationY || 0);
 
-      // Create a rect without rotation applied, adding padding for easier selection
+      // Create a rect with padding for easier selection
       let rect = {
         x: textX - (textWidth / 2 + padding), // Center horizontally with padding
         y: textY - (textHeight / 2 + padding), // Center vertically with padding
@@ -367,20 +367,8 @@ const ImageRender = React.memo(() => {
         height: textHeight + padding * 2,
       };
 
-      // If there's rotation, we need to adjust the bounding box
-      if (currentText.rotation && currentText.rotation !== 0) {
-        // For rotated text, create a larger bounding box
-        const diagonal = Math.sqrt(
-          Math.pow(rect.width, 2) + Math.pow(rect.height, 2)
-        );
-        rect = {
-          x: textX - diagonal / 2,
-          y: textY - diagonal / 2,
-          width: diagonal,
-          height: diagonal,
-        };
-      }
-
+      // For rotated text, we'll handle the rotation in the draw function instead
+      // This ensures the rectangle stays aligned with the text
       return rect;
     },
     [] // No dependencies since we take currentText as a parameter
@@ -478,7 +466,7 @@ const ImageRender = React.memo(() => {
     }
   }, [logos]);
 
-  // Enhance drawTextOverlay to include resize handles
+  // Update the drawTextOverlay function to include extended resize regions
   const drawTextOverlay = useCallback(
     (
       ctx: CanvasRenderingContext2D,
@@ -555,102 +543,183 @@ const ImageRender = React.memo(() => {
             (resizingTextId === null && text === textOverlay));
 
         if (isDraggingThisText || text.isSelected || isResizingThisText) {
+          // Save the current context state
+          ctx.save();
+
+          // Translate to the text position for rotation
+          const textX =
+            (canvas.width * text.position.x) / 100 + (text.translationX || 0);
+          const textY =
+            (canvas.height * text.position.y) / 100 + (text.translationY || 0);
+          ctx.translate(textX, textY);
+
+          // Apply rotation if needed
+          if (text.rotation && text.rotation !== 0) {
+            ctx.rotate((text.rotation * Math.PI) / 180);
+          }
+
           // Draw a more prominent bounding box when dragging or selected
           ctx.strokeStyle = "#3b82f6"; // Blue
           ctx.lineWidth = 2;
           ctx.setLineDash([]);
           ctx.strokeRect(
-            textRect.x,
-            textRect.y,
+            -textRect.width / 2,
+            -textRect.height / 2,
             textRect.width,
             textRect.height
           );
 
-          // Draw control points
-          ctx.fillStyle = "#3b82f6";
-          const handleSize = 6;
-
-          // Define handle positions
-          const handles = [
+          // Define edge regions for resizing (larger areas for better usability)
+          const edgeSize = 24; // Increased to 24px for better grab area
+          const edges = [
             {
-              x: textRect.x,
-              y: textRect.y,
-              cursor: "nwse-resize",
-              direction: "topLeft",
-            }, // Top-left
-            {
-              x: textRect.x + textRect.width / 2,
-              y: textRect.y,
+              x: -textRect.width / 2,
+              y: -textRect.height / 2 - edgeSize / 2,
+              width: textRect.width,
+              height: edgeSize,
               cursor: "ns-resize",
               direction: "top",
-            }, // Top-center
+            }, // Top edge
             {
-              x: textRect.x + textRect.width,
-              y: textRect.y + 20, // Move resize handle down to avoid conflict with delete button
-              cursor: "nesw-resize",
-              direction: "topRight",
-            }, // Top-right (moved down)
-            {
-              x: textRect.x,
-              y: textRect.y + textRect.height / 2,
-              cursor: "ew-resize",
-              direction: "left",
-            }, // Middle-left
-            {
-              x: textRect.x + textRect.width,
-              y: textRect.y + textRect.height / 2,
-              cursor: "ew-resize",
-              direction: "right",
-            }, // Middle-right
-            {
-              x: textRect.x,
-              y: textRect.y + textRect.height,
-              cursor: "nesw-resize",
-              direction: "bottomLeft",
-            }, // Bottom-left
-            {
-              x: textRect.x + textRect.width / 2,
-              y: textRect.y + textRect.height,
+              x: -textRect.width / 2,
+              y: textRect.height / 2 - edgeSize / 2,
+              width: textRect.width,
+              height: edgeSize,
               cursor: "ns-resize",
               direction: "bottom",
-            }, // Bottom-center
+            }, // Bottom edge
             {
-              x: textRect.x + textRect.width,
-              y: textRect.y + textRect.height,
-              cursor: "nwse-resize",
-              direction: "bottomRight",
-            }, // Bottom-right
+              x: -textRect.width / 2 - edgeSize / 2,
+              y: -textRect.height / 2,
+              width: edgeSize,
+              height: textRect.height,
+              cursor: "ew-resize",
+              direction: "left",
+            }, // Left edge
+            {
+              x: textRect.width / 2 - edgeSize / 2,
+              y: -textRect.height / 2,
+              width: edgeSize,
+              height: textRect.height,
+              cursor: "ew-resize",
+              direction: "right",
+            }, // Right edge
           ];
 
-          // Draw handles and check if mouse is over any handle
-          handles.forEach((handle) => {
-            ctx.fillRect(
-              handle.x - handleSize / 2,
-              handle.y - handleSize / 2,
-              handleSize,
-              handleSize
-            );
+          // Draw blue corner squares (Figma style)
+          const cornerSize = 16; // Increased to 16px for better visibility and grab area
+          const corners = [
+            {
+              x: -textRect.width / 2 - cornerSize / 2,
+              y: -textRect.height / 2 - cornerSize / 2,
+              cursor: "nwse-resize",
+              direction: "topLeft",
+            }, // Top-left corner
+            {
+              x: textRect.width / 2 - cornerSize / 2,
+              y: -textRect.height / 2 - cornerSize / 2,
+              cursor: "nesw-resize",
+              direction: "topRight",
+            }, // Top-right corner
+            {
+              x: -textRect.width / 2 - cornerSize / 2,
+              y: textRect.height / 2 - cornerSize / 2,
+              cursor: "nesw-resize",
+              direction: "bottomLeft",
+            }, // Bottom-left corner
+            {
+              x: textRect.width / 2 - cornerSize / 2,
+              y: textRect.height / 2 - cornerSize / 2,
+              cursor: "nwse-resize",
+              direction: "bottomRight",
+            }, // Bottom-right corner
+          ];
 
-            // Change cursor if mouse is over a handle
-            if (
-              mouseX >= handle.x - handleSize &&
-              mouseX <= handle.x + handleSize &&
-              mouseY >= handle.y - handleSize &&
-              mouseY <= handle.y + handleSize
-            ) {
-              canvas.style.cursor = handle.cursor;
-            }
+          // Draw corner squares with a subtle highlight
+          corners.forEach((corner) => {
+            // Draw a subtle background for better visibility
+            ctx.fillStyle = "rgba(59, 130, 246, 0.1)"; // Light blue background
+            ctx.fillRect(corner.x, corner.y, cornerSize, cornerSize);
+
+            // Draw the main corner square
+            ctx.fillStyle = "#3b82f6"; // Blue color for corners
+            ctx.fillRect(
+              corner.x + (cornerSize - 8) / 2,
+              corner.y + (cornerSize - 8) / 2,
+              8,
+              8
+            );
           });
+
+          // Restore the context
+          ctx.restore();
+
+          // Check if mouse is over any edge or corner
+          if (mouseX !== undefined && mouseY !== undefined) {
+            // Transform mouse coordinates to account for rotation
+            const dx = mouseX - textX;
+            const dy = mouseY - textY;
+            const angle = text.rotation ? (text.rotation * Math.PI) / 180 : 0;
+            const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+            // Check edges first
+            for (const edge of edges) {
+              if (
+                rotatedX >= edge.x &&
+                rotatedX <= edge.x + edge.width &&
+                rotatedY >= edge.y &&
+                rotatedY <= edge.y + edge.height
+              ) {
+                canvas.style.cursor = edge.cursor;
+                break;
+              }
+            }
+
+            // Then check corners
+            for (const corner of corners) {
+              if (
+                rotatedX >= corner.x &&
+                rotatedX <= corner.x + cornerSize &&
+                rotatedY >= corner.y &&
+                rotatedY <= corner.y + cornerSize
+              ) {
+                canvas.style.cursor = corner.cursor;
+                break;
+              }
+            }
+          }
 
           // Draw delete button when selected (not dragging)
           if (text.isSelected && !isDraggingThisText && !isResizingThisText) {
-            // Draw delete button at top right
+            // Save context state
+            ctx.save();
+
+            // Translate to the text position for rotation
+            const textX =
+              (canvas.width * text.position.x) / 100 + (text.translationX || 0);
+            const textY =
+              (canvas.height * text.position.y) / 100 +
+              (text.translationY || 0);
+            ctx.translate(textX, textY);
+
+            // Apply rotation if needed
+            if (text.rotation && text.rotation !== 0) {
+              ctx.rotate((text.rotation * Math.PI) / 180);
+            }
+
+            // Position delete button at top right corner of the rectangle
+            const deleteButtonX = textRect.width / 2;
+            const deleteButtonY = -textRect.height / 2;
+            const deleteButtonRadius = 10;
+
+            // Draw delete button background
             ctx.fillStyle = "#ef4444"; // Red
             ctx.beginPath();
             ctx.arc(
-              textRect.x + textRect.width,
-              textRect.y,
-              10,
+              deleteButtonX,
+              deleteButtonY,
+              deleteButtonRadius,
               0,
               Math.PI * 2
             );
@@ -661,29 +730,54 @@ const ImageRender = React.memo(() => {
             ctx.lineWidth = 2;
             ctx.setLineDash([]);
             ctx.beginPath();
-            ctx.moveTo(textRect.x + textRect.width - 5, textRect.y - 5);
-            ctx.lineTo(textRect.x + textRect.width + 5, textRect.y + 5);
-            ctx.moveTo(textRect.x + textRect.width + 5, textRect.y - 5);
-            ctx.lineTo(textRect.x + textRect.width - 5, textRect.y + 5);
+            ctx.moveTo(deleteButtonX - 5, deleteButtonY - 5);
+            ctx.lineTo(deleteButtonX + 5, deleteButtonY + 5);
+            ctx.moveTo(deleteButtonX + 5, deleteButtonY - 5);
+            ctx.lineTo(deleteButtonX - 5, deleteButtonY + 5);
             ctx.stroke();
+
+            // Restore context
+            ctx.restore();
+
+            // Check if mouse is over delete button
+            if (mouseX !== undefined && mouseY !== undefined) {
+              // Transform mouse coordinates to account for rotation
+              const dx = mouseX - textX;
+              const dy = mouseY - textY;
+              const angle = text.rotation ? (text.rotation * Math.PI) / 180 : 0;
+              const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+              const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+              // Calculate distance from mouse to delete button
+              const distToDeleteButton = Math.sqrt(
+                Math.pow(rotatedX - deleteButtonX, 2) +
+                  Math.pow(rotatedY - deleteButtonY, 2)
+              );
+
+              if (distToDeleteButton <= deleteButtonRadius) {
+                canvas.style.cursor = "pointer";
+              }
+            }
+          } else if (
+            mouseX !== undefined &&
+            mouseY !== undefined &&
+            mouseX >= textRect.x &&
+            mouseX <= textRect.x + textRect.width &&
+            mouseY >= textRect.y &&
+            mouseY <= textRect.y + textRect.height
+          ) {
+            // Draw a subtle bounding box when hovering
+            ctx.strokeStyle = "#9ca3af"; // Gray
+            ctx.lineWidth = 1;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(
+              textRect.x,
+              textRect.y,
+              textRect.width,
+              textRect.height
+            );
+            ctx.setLineDash([]);
           }
-        } else if (
-          mouseX >= textRect.x &&
-          mouseX <= textRect.x + textRect.width &&
-          mouseY >= textRect.y &&
-          mouseY <= textRect.y + textRect.height
-        ) {
-          // Draw a subtle bounding box when hovering
-          ctx.strokeStyle = "#9ca3af"; // Gray
-          ctx.lineWidth = 1;
-          ctx.setLineDash([5, 5]);
-          ctx.strokeRect(
-            textRect.x,
-            textRect.y,
-            textRect.width,
-            textRect.height
-          );
-          ctx.setLineDash([]);
         }
       }
     },
@@ -954,7 +1048,7 @@ const ImageRender = React.memo(() => {
 
   // Add a function to prepare the canvas for export
 
-  // Update the handleMouseDown function to handle text resize controls
+  // Update the handleMouseDown function to match the new resize regions
   const handleMouseDown = useCallback(
     (e: MouseEvent) => {
       if (!canvasRef.current) return;
@@ -967,18 +1061,8 @@ const ImageRender = React.memo(() => {
       const mouseX = (e.clientX - rect.left) * scaleX;
       const mouseY = (e.clientY - rect.top) * scaleY;
 
-      console.log("Mouse down at:", { mouseX, mouseY });
-      console.log("Text overlay visible:", textOverlay.isVisible);
-      console.log("Text content:", textOverlay.text);
-      console.log("Canvas dimensions:", {
-        width: canvas.width,
-        height: canvas.height,
-      });
-
       // Create a combined array of all text overlays (including legacy one)
       const allTextOverlays = [...textOverlays];
-
-      // Add legacy text overlay if it's visible
       if (textOverlay.isVisible && textOverlay.text) {
         allTextOverlays.push(textOverlay);
       }
@@ -1000,102 +1084,140 @@ const ImageRender = React.memo(() => {
           mouseY <= textRect.y + textRect.height
         ) {
           // First check if the text is selected and the click is on delete button
-          // This should take precedence over everything else
           if (currentText.isSelected) {
-            const deleteButtonX = textRect.x + textRect.width;
-            const deleteButtonY = textRect.y;
+            // Transform mouse coordinates to account for rotation
+            const textX =
+              (canvas.width * currentText.position.x) / 100 +
+              (currentText.translationX || 0);
+            const textY =
+              (canvas.height * currentText.position.y) / 100 +
+              (currentText.translationY || 0);
+            const dx = mouseX - textX;
+            const dy = mouseY - textY;
+            const angle = currentText.rotation
+              ? (currentText.rotation * Math.PI) / 180
+              : 0;
+            const rotatedX = dx * Math.cos(-angle) - dy * Math.sin(-angle);
+            const rotatedY = dx * Math.sin(-angle) + dy * Math.cos(-angle);
+
+            // Calculate delete button position in rotated coordinates
+            const deleteButtonX = textRect.width / 2;
+            const deleteButtonY = -textRect.height / 2;
             const deleteButtonRadius = 10;
 
+            // Check if click is on delete button
             const distToDeleteButton = Math.sqrt(
-              Math.pow(mouseX - deleteButtonX, 2) +
-                Math.pow(mouseY - deleteButtonY, 2)
+              Math.pow(rotatedX - deleteButtonX, 2) +
+                Math.pow(rotatedY - deleteButtonY, 2)
             );
 
             if (distToDeleteButton <= deleteButtonRadius) {
-              console.log("Delete button clicked for text:", currentText.text);
-              // Delete the text
               if (currentText === textOverlay) {
-                // Handle legacy text
                 deleteText();
               } else {
-                // Handle text from new array
                 deleteTextById(currentText.id);
               }
               textHandled = true;
               break;
             }
 
-            // If not deleting, see if we're clicking on a resize handle
-            // Check for resize handles
-            const handleSize = 8;
-            const handles = [
+            // Check for edge-based resizing
+            const edgeSize = 24; // Increased to match visual size
+            const edges = [
               {
                 x: textRect.x,
-                y: textRect.y,
-                direction: "topLeft",
-              }, // Top-left
-              {
-                x: textRect.x + textRect.width / 2,
-                y: textRect.y,
+                y: textRect.y - edgeSize / 2,
+                width: textRect.width,
+                height: edgeSize,
                 direction: "top",
-              }, // Top-center
-              {
-                x: textRect.x + textRect.width,
-                y: textRect.y + 20, // Moved down to avoid conflict with delete button
-                direction: "topRight",
-              }, // Top-right (moved down)
+              }, // Top edge
               {
                 x: textRect.x,
-                y: textRect.y + textRect.height / 2,
-                direction: "left",
-              }, // Middle-left
-              {
-                x: textRect.x + textRect.width,
-                y: textRect.y + textRect.height / 2,
-                direction: "right",
-              }, // Middle-right
-              {
-                x: textRect.x,
-                y: textRect.y + textRect.height,
-                direction: "bottomLeft",
-              }, // Bottom-left
-              {
-                x: textRect.x + textRect.width / 2,
-                y: textRect.y + textRect.height,
+                y: textRect.y + textRect.height - edgeSize / 2,
+                width: textRect.width,
+                height: edgeSize,
                 direction: "bottom",
-              }, // Bottom-center
+              }, // Bottom edge
               {
-                x: textRect.x + textRect.width,
-                y: textRect.y + textRect.height,
-                direction: "bottomRight",
-              }, // Bottom-right
+                x: textRect.x - edgeSize / 2,
+                y: textRect.y,
+                width: edgeSize,
+                height: textRect.height,
+                direction: "left",
+              }, // Left edge
+              {
+                x: textRect.x + textRect.width - edgeSize / 2,
+                y: textRect.y,
+                width: edgeSize,
+                height: textRect.height,
+                direction: "right",
+              }, // Right edge
             ];
 
-            // Check if clicked on any handle
-            for (const handle of handles) {
+            // Check corners
+            const cornerSize = 16; // Increased to match visual size
+            const corners = [
+              {
+                x: textRect.x - cornerSize / 2,
+                y: textRect.y - cornerSize / 2,
+                direction: "topLeft",
+              }, // Top-left corner
+              {
+                x: textRect.x + textRect.width - cornerSize / 2,
+                y: textRect.y - cornerSize / 2,
+                direction: "topRight",
+              }, // Top-right corner
+              {
+                x: textRect.x - cornerSize / 2,
+                y: textRect.y + textRect.height - cornerSize / 2,
+                direction: "bottomLeft",
+              }, // Bottom-left corner
+              {
+                x: textRect.x + textRect.width - cornerSize / 2,
+                y: textRect.y + textRect.height - cornerSize / 2,
+                direction: "bottomRight",
+              }, // Bottom-right corner
+            ];
+
+            // Check if clicked on any edge
+            for (const edge of edges) {
               if (
-                mouseX >= handle.x - handleSize &&
-                mouseX <= handle.x + handleSize &&
-                mouseY >= handle.y - handleSize &&
-                mouseY <= handle.y + handleSize
+                mouseX >= edge.x &&
+                mouseX <= edge.x + edge.width &&
+                mouseY >= edge.y &&
+                mouseY <= edge.y + edge.height
               ) {
-                console.log(
-                  `Starting text resize with handle: ${handle.direction}`
-                );
                 setIsResizingText(true);
-                setResizeDirection(handle.direction);
+                setResizeDirection(edge.direction);
                 setTextResizeStartPoint({ x: mouseX, y: mouseY });
-
-                // Track which text is being resized and its initial font size
-                if (currentText === textOverlay) {
-                  setResizingTextId(null); // null for legacy text
-                } else {
-                  setResizingTextId(currentText.id);
-                }
-
+                setResizingTextId(
+                  currentText === textOverlay ? null : currentText.id
+                );
                 setInitialFontSize(currentText.fontSize);
                 textHandled = true;
                 break;
+              }
+            }
+
+            // Check if clicked on any corner
+            if (!textHandled) {
+              for (const corner of corners) {
+                if (
+                  mouseX >= corner.x &&
+                  mouseX <= corner.x + cornerSize &&
+                  mouseY >= corner.y &&
+                  mouseY <= corner.y + cornerSize
+                ) {
+                  setIsResizingText(true);
+                  setResizeDirection(corner.direction);
+                  setTextResizeStartPoint({ x: mouseX, y: mouseY });
+                  setResizingTextId(
+                    currentText === textOverlay ? null : currentText.id
+                  );
+                  setInitialFontSize(currentText.fontSize);
+                  textHandled = true;
+                  break;
+                }
               }
             }
 
