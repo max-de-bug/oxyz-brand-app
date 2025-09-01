@@ -34,12 +34,21 @@ export function useUserProfile() {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
+  // Get cached user data from localStorage for immediate display
+  const cachedUserData =
+    typeof window !== "undefined" ? localStorage.getItem("userData") : null;
+  const parsedCachedData = cachedUserData ? JSON.parse(cachedUserData) : null;
+
   return useQuery<UserProfile>({
     queryKey: ["user", "profile"],
     queryFn: async () => {
       try {
         const response = await apiClient.get<UserProfile>("/users/profile");
-        console.log("Response UserProfile", response);
+
+        // Store user data in localStorage for future fast access
+        if (typeof window !== "undefined" && response) {
+          localStorage.setItem("userData", JSON.stringify(response));
+        }
 
         // Ensure we have a valid response with a name property
         if (!response || !response.name) {
@@ -57,23 +66,28 @@ export function useUserProfile() {
     },
     enabled: !!token,
     retry: 1,
-    staleTime: 0, // Always consider data stale, forcing refetch on mount
+    // Use cached data as placeholder data for immediate display while fetching
+    placeholderData: parsedCachedData,
+    // Initialize with cached data or empty defaults
+    initialData:
+      parsedCachedData ||
+      ({
+        id: "",
+        name: "",
+        email: "",
+        image: null,
+        createdAt: "",
+        updatedAt: "",
+      } as UserProfile),
+    // Cache valid data for 1 minute to avoid unnecessary refetches
+    staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000, // 5 minutes
-    // Add a default value to prevent undefined errors
-    initialData: {
-      id: "",
-      name: "",
-      email: "",
-      image: null,
-      createdAt: "",
-      updatedAt: "",
-    } as UserProfile,
     // Always refetch on window focus to ensure fresh data
     refetchOnWindowFocus: true,
     // Refetch on reconnect to ensure data is up to date
     refetchOnReconnect: true,
-    // Always refetch on mount to ensure fresh data when navigating to the page
-    refetchOnMount: "always", // Force refetch on every mount
+    // Only fetch if cache is stale
+    refetchOnMount: true,
   });
 }
 
@@ -81,6 +95,16 @@ export function useUserProfile() {
 export function useDefaultUserImage() {
   const token =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+
+  // Get cached default image data from localStorage for immediate display
+  const cachedDefaultImage =
+    typeof window !== "undefined"
+      ? localStorage.getItem("defaultUserImage")
+      : null;
+  const parsedCachedImage = cachedDefaultImage
+    ? JSON.parse(cachedDefaultImage)
+    : null;
+
   return useQuery<DefaultUserImage>({
     queryKey: ["user", "defaults", "image"],
     queryFn: async () => {
@@ -88,16 +112,33 @@ export function useDefaultUserImage() {
         const response = await apiClient.get<DefaultUserImage>(
           "/users/defaults/image"
         );
+
+        // Store default image data in localStorage for future fast access
+        if (typeof window !== "undefined" && response) {
+          localStorage.setItem("defaultUserImage", JSON.stringify(response));
+        }
+
         return response;
       } catch (error) {
         console.error("Error fetching default user image:", error);
         throw error;
       }
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes cache
-    gcTime: 30 * 60 * 1000, // 30 minutes garbage collection
-    retry: 2,
     enabled: !!token,
+    retry: 1,
+    // Use cached data as placeholder data for immediate display while fetching
+    placeholderData: parsedCachedImage,
+    // Initialize with cached data or empty defaults
+    initialData: parsedCachedImage || null,
+    // Cache valid data for 1 minute to avoid unnecessary refetches
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    // Always refetch on window focus to ensure fresh data
+    refetchOnWindowFocus: true,
+    // Refetch on reconnect to ensure data is up to date
+    refetchOnReconnect: true,
+    // Only fetch if cache is stale
+    refetchOnMount: true,
   });
 }
 

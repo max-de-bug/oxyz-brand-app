@@ -15,14 +15,20 @@ import {
 } from "@/lib/api/queries";
 import Image from "next/image";
 import Link from "next/link";
+import { useDesignStore } from "@/app/store/designStore";
+import { useToast } from "@/hooks/use-toast";
 
 const ImageUploader = () => {
   const { session } = useAuth();
   const [uploading, setUploading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  // Get dev mode from design store
+  const { devMode } = useDesignStore();
 
   // Zustand store for UI state and selected image
-  const { imageUrl, setImage, savedImages, clearSavedImages } = useImageStore();
+  const { images, addImage, removeImage, savedImages, reset } = useImageStore();
 
   // React Query for data fetching and mutations
   const {
@@ -45,10 +51,20 @@ const ImageUploader = () => {
 
   const handleSelectImage = useCallback(
     (url: string) => {
+      // Check if we can add more images
+      if (!devMode && images.length >= 1) {
+        toast({
+          variant: "destructive",
+          title: "Image Limit Reached",
+          description:
+            "You can only add one image at a time. Enable dev mode to add multiple images.",
+        });
+        return;
+      }
       console.log("Selecting image:", url);
-      setImage(url);
+      addImage(url);
     },
-    [setImage]
+    [addImage, devMode, images.length, toast]
   );
 
   const handleUpload = useCallback(
@@ -61,22 +77,23 @@ const ImageUploader = () => {
 
       try {
         const uploadedImage = await uploadImageMutation.mutateAsync(file);
-
-        // Show success message
-        setSuccessMessage("Image uploaded successfully!");
-
-        // Explicitly refetch images to ensure UI is up to date
-        // await refetchImages();
-
+        toast({
+          title: "Success",
+          description: "Image uploaded successfully!",
+        });
         event.target.value = ""; // Reset input
       } catch (error) {
         console.error("Error uploading image:", error);
-        alert("Failed to upload image. Please try again.");
+        toast({
+          variant: "destructive",
+          title: "Upload Failed",
+          description: "Failed to upload image. Please try again.",
+        });
       } finally {
         setUploading(false);
       }
     },
-    [session, uploadImageMutation, setImage, refetchImages]
+    [session, uploadImageMutation, devMode, images.length, toast]
   );
 
   const handleDeleteImage = useCallback(
@@ -96,9 +113,9 @@ const ImageUploader = () => {
 
         await deleteImageMutation.mutateAsync(identifier);
 
-        // If the deleted image was the current main image, clear it
-        if (imageUrl === image.url) {
-          setImage("");
+        // If the deleted image was the current main image, remove it
+        if (image.url && images.some((img) => img.url === image.url)) {
+          removeImage(image.url);
         }
 
         // Force a fresh fetch of images
@@ -112,7 +129,7 @@ const ImageUploader = () => {
         );
       }
     },
-    [session, deleteImageMutation, imageUrl, setImage, refetchImages]
+    [session, deleteImageMutation, images, removeImage, refetchImages]
   );
 
   // Show a sign-in message if not signed in
@@ -164,7 +181,9 @@ const ImageUploader = () => {
         <div
           key={image.id}
           className={`relative p-2 border rounded ${
-            imageUrl === image.url ? "border-blue-500" : "border-gray-200"
+            images.some((img) => img.url === image.url)
+              ? "border-blue-500"
+              : "border-gray-200"
           }`}
         >
           <div className="flex justify-between mb-2">
@@ -189,7 +208,11 @@ const ImageUploader = () => {
                 className={`
                   w-full h-full object-cover cursor-pointer
                   transition-all duration-300 ease-in-out group-hover:scale-105
-                  ${imageUrl === image.url ? "ring-2 ring-blue-500" : ""}
+                  ${
+                    images.some((img) => img.url === image.url)
+                      ? "ring-2 ring-blue-500"
+                      : ""
+                  }
                 `}
                 fill={true}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -201,20 +224,22 @@ const ImageUploader = () => {
           <button
             onClick={() => handleSelectImage(image.url)}
             className={`w-full text-xs p-1 mt-2 rounded ${
-              imageUrl === image.url
+              images.some((img) => img.url === image.url)
                 ? "bg-blue-500 text-white hover:bg-blue-600"
                 : "bg-gray-800 hover:bg-gray-700"
             } flex items-center justify-center gap-1`}
             disabled={isLoadingImages || !image.url}
           >
             <Plus size={12} />
-            {imageUrl === image.url ? "Selected" : "Set as Main Image"}
+            {images.some((img) => img.url === image.url)
+              ? "Selected"
+              : "Set as Main Image"}
           </button>
         </div>
       );
     },
     [
-      imageUrl,
+      images,
       handleDeleteImage,
       handleSelectImage,
       isLoadingImages,
@@ -319,33 +344,42 @@ const ImageUploader = () => {
       {/* Active Images Section - Show for all users */}
       <div className="mb-4">
         <h3 className="text-sm font-medium mb-2">
-          Active Images ({imageUrl ? 1 : 0})
+          Active Images ({images.length})
         </h3>
         <div className="flex flex-wrap gap-2">
-          {imageUrl ? (
-            <Badge
-              variant="default"
-              className="group flex items-center gap-2 cursor-pointer pr-2"
-            >
-              <img
-                src={imageUrl}
-                alt="Current"
-                className="w-4 h-4 object-contain "
-              />
-              <span className="max-w-[60px] truncate">
-                {imageUrl.split("/").pop()?.split("?")[0] || "Image"}
-              </span>
-              <button
-                onClick={() => {
-                  if (confirm("Remove this image from canvas?")) {
-                    setImage("");
-                  }
-                }}
-                className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+          {images.length > 0 ? (
+            images.map((image) => (
+              <Badge
+                key={image.id}
+                variant="default"
+                className="group flex items-center gap-2 cursor-pointer pr-2"
               >
-                <Trash2 size={12} />
-              </button>
-            </Badge>
+                <img
+                  src={image.url}
+                  alt="Current"
+                  className="w-4 h-4 object-contain"
+                />
+                <span className="max-w-[60px] truncate">
+                  {image.url.split("/").pop()?.split("?")[0] || "Image"}
+                </span>
+                <button
+                  onClick={() => {
+                    if (confirm("Remove this image from canvas?")) {
+                      // Find the image in the images array and remove it by its ID
+                      const imageToRemove = images.find(
+                        (img) => img.id === image.id
+                      );
+                      if (imageToRemove) {
+                        removeImage(imageToRemove.id);
+                      }
+                    }
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity ml-1 text-red-500 hover:text-red-700"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </Badge>
+            ))
           ) : (
             <span className="text-xs text-gray-500">
               No image added to canvas
@@ -383,12 +417,12 @@ const ImageUploader = () => {
           )}
         </div>
       ) : (
-        imageUrl && (
+        images.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-medium mb-2">Image Preview</h3>
             <div className="relative aspect-square rounded-lg overflow-hidden border border-gray-300">
               <img
-                src={imageUrl}
+                src={images[0].url}
                 alt="Current image"
                 className="w-full h-full object-cover"
               />

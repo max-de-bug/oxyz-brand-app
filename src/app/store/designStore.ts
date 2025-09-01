@@ -65,7 +65,9 @@ interface DesignState {
   loading: boolean;
   error: string | null;
   aspectRatio: string;
+  devMode: boolean;
   setCurrentDesignId: (id: string | null) => void;
+  toggleDevMode: () => void;
 
   setRotation: (rotation: number) => void;
   setColorValue: (colorValue: string) => void;
@@ -144,7 +146,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
             id: "default",
             text: "",
             isVisible: false,
-            color: "#FFFFFF",
+            color: "#000000",
             fontFamily: "ABCDiatype-Regular",
             fontSize: 24,
             isBold: false,
@@ -232,7 +234,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
       id: "default",
       text: "",
       isVisible: false,
-      color: "#FFFFFF",
+      color: "#000000",
       fontFamily: "ABCDiatype-Regular",
       fontSize: 24,
       isBold: false,
@@ -251,7 +253,8 @@ export const useDesignStore = create<DesignState>((set, get) => {
     designs: [],
     loading: false,
     error: null,
-    aspectRatio: "4:3",
+    aspectRatio: "16:9",
+    devMode: false,
     setCurrentDesignId: (id) => set({ currentDesignId: id }),
 
     setRotation: (rotation) => set({ rotation }),
@@ -555,7 +558,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
           id,
           text,
           isVisible: true,
-          color: "#FFFFFF",
+          color: "#000000",
           fontFamily: "ABCDiatype-Regular",
           fontSize: 24,
           isBold: false,
@@ -606,5 +609,9 @@ export const useDesignStore = create<DesignState>((set, get) => {
     },
 
     clearTextOverlays: () => set({ textOverlays: [] }),
+
+    toggleDevMode: () => {
+      set((state) => ({ devMode: !state.devMode }));
+    },
   };
 });

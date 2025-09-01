@@ -5,6 +5,23 @@ import { useImageStore } from "@/app/store/imageStore";
 import { Download, Copy, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+// Helper function to check if a font is loaded
+const isFontLoaded = (fontFamily: string): Promise<boolean> => {
+  return new Promise((resolve) => {
+    // Use document.fonts API if available (modern browsers)
+    if ("fonts" in document) {
+      document.fonts.ready.then(() => {
+        // Check if the font is available
+        resolve(document.fonts.check(`16px ${fontFamily}`));
+      });
+    } else {
+      // Fallback for browsers that don't support document.fonts
+      // Just assume the font is loaded after a short delay
+      setTimeout(() => resolve(true), 100);
+    }
+  });
+};
+
 export const captureVisibleCanvas = async (): Promise<string | null> => {
   try {
     console.log("Capturing visible canvas");
@@ -38,6 +55,53 @@ export const captureVisibleCanvas = async (): Promise<string | null> => {
 
     // Draw the visible canvas onto our export canvas
     ctx.drawImage(canvasElement, 0, 0, visibleWidth, visibleHeight);
+
+    // Add watermark
+    const watermarkText = "created by o.xyz designer";
+
+    // Wait for the custom font to load
+    const primaryFont = "ABCDiatype-Regular";
+    const fontLoaded = await isFontLoaded(primaryFont);
+
+    // Use the custom font if loaded, otherwise fall back to system fonts
+    const fontFamily = fontLoaded
+      ? `${primaryFont}, 'Helvetica Neue', Arial, sans-serif`
+      : `'Helvetica Neue', Arial, sans-serif`;
+
+    // Set font properties - slightly larger for better readability
+    const fontSize = 10;
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    ctx.textAlign = "right";
+    ctx.textBaseline = "bottom";
+    const padding = 5;
+
+    // Measure text for background
+    const textMetrics = ctx.measureText(watermarkText);
+    const textWidth = textMetrics.width;
+    const textHeight = fontSize; // Approximate height based on font size
+    const bgPadding = 6;
+
+    // Draw a semi-transparent black background for better readability
+    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+    ctx.fillRect(
+      visibleWidth - textWidth - padding - bgPadding,
+      visibleHeight - textHeight - padding - bgPadding / 2,
+      textWidth + bgPadding * 2,
+      textHeight + bgPadding
+    );
+
+    // Set text color to white with high opacity for better contrast
+    ctx.fillStyle = "rgba(255, 255, 255, 1.0)";
+
+    // Fill the text
+    ctx.fillText(
+      watermarkText,
+      visibleWidth - padding,
+      visibleHeight - padding
+    );
+
+    // Log to confirm watermark was added
+    console.log("Watermark added with white text on dark background");
 
     // Try to get data URL
     try {
@@ -87,7 +151,7 @@ export const captureVisibleCanvas = async (): Promise<string | null> => {
 };
 
 const ExportControls = () => {
-  const { imageUrl } = useImageStore();
+  const { images } = useImageStore();
   const [activeTab, setActiveTab] = useState<"SVG" | "Video" | "PNG" | "GIF">(
     "PNG"
   );
@@ -273,7 +337,7 @@ const ExportControls = () => {
           ) : (
             <>
               <p className="text-xs text-neutral-600 dark:text-neutral-400 mb-4">
-                {!imageUrl
+                {images.length === 0
                   ? "Click the button below to download your text design as a PNG image."
                   : "Click the button below to download your design as a PNG image."}
               </p>

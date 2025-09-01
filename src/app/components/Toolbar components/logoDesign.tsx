@@ -16,6 +16,7 @@ const LogoDesigns = () => {
   const [uploading, setUploading] = useState(false);
 
   const { logos, addLogo } = useImageStore();
+  const { removeLogo } = useImageStore.getState();
 
   // Separate the query and mutation hooks
   const {
@@ -100,8 +101,7 @@ const LogoDesigns = () => {
 
   // Add this function to remove logo from canvas
   const handleRemoveFromCanvas = useCallback((logoId: string) => {
-    const { deleteLogo: removeFromCanvas } = useImageStore.getState();
-    removeFromCanvas(logoId);
+    removeLogo(logoId);
   }, []);
 
   const renderLogoCard = useCallback(

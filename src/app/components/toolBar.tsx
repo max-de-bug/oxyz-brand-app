@@ -29,28 +29,7 @@ import {
 } from "lucide-react";
 
 const ToolBar = () => {
-  const {
-    rotation,
-    setRotation,
-    colorValue,
-    setColorValue,
-    translationX,
-    setTranslationX,
-    translationY,
-    setTranslationY,
-    minSize,
-    setMinSize,
-    maxSize,
-    setMaxSize,
-    spacing,
-    setSpacing,
-    aspectRatio,
-    textOverlay,
-    setTextRotation,
-    setTextSpacing,
-    setTextTranslationX,
-    setTextTranslationY,
-  } = useDesignStore();
+  const { colorValue, setColorValue } = useDesignStore();
 
   // State to track expanded/collapsed sections
   const [expandedSections, setExpandedSections] = useState({
@@ -98,7 +77,7 @@ const ToolBar = () => {
     <div className="bg-gradient-to-br from-[#070707] to-[#1a1a1a] flex flex-col h-screen fixed top-0 right-0 overflow-hidden w-80 md:w-96 border-l border-[#333333]">
       <h2 className="text-xl font-semibold text-center sticky top-0 backdrop-blur-md bg-black/30 z-10 py-4 px-4 border-b border-[#333333]">
         <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-transparent bg-clip-text">
-          O.XYZ Designer
+          O.Designer
         </span>
       </h2>
 

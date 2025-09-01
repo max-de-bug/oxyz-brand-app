@@ -7,6 +7,7 @@ export interface FilterValues {
   saturation?: number;
   sepia?: number;
   opacity?: number;
+  blur?: number;
 }
 
 export interface Filter {

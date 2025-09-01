@@ -40,6 +40,7 @@ const HeaderControls = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [savedImageUrl, setSavedImageUrl] = useState<string | null>(null);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
 
   const usernameInputRef = useRef<HTMLInputElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -48,12 +49,17 @@ const HeaderControls = () => {
   // Image and Design Store access for reset functionality
   const {
     reset: resetImageState,
-    setFilter,
-    clearMainImage,
-    clearLogos,
-    imageUrl,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    images,
     logos,
-    setImage,
+    addImage,
+    removeImage,
+    updateImage,
+    selectImage,
   } = useImageStore();
   const { textOverlays, deleteTextById, setTextOverlay, textOverlay } =
     useDesignStore();
@@ -62,7 +68,7 @@ const HeaderControls = () => {
 
   // Check if canvas is empty
   const canvasIsEmpty =
-    !imageUrl &&
+    images.length === 0 &&
     logos.length === 0 &&
     !textOverlay.isVisible &&
     textOverlays.length === 0;
@@ -91,7 +97,7 @@ const HeaderControls = () => {
     }
 
     if (window.confirm("Reset all changes? This cannot be undone.")) {
-      clearMainImage();
+      resetImageState();
 
       toast({
         title: "Canvas Reset",
@@ -395,16 +401,21 @@ const HeaderControls = () => {
 
     if (isLoading) {
       return (
-        <Loader2
-          size={size === "small" ? 14 : 18}
-          className="animate-spin text-white/80"
-        />
+        <div className="w-full h-full relative rounded-full overflow-hidden flex items-center justify-center">
+          <Loader2
+            size={size === "small" ? 14 : 18}
+            className="animate-spin text-white/80"
+          />
+        </div>
       );
     }
 
     if (profileImage) {
       return (
-        <div className="w-full h-full relative rounded-full overflow-hidden">
+        <div className="w-full h-full relative rounded-full overflow-hidden flex items-center justify-center">
+          {!isImageLoaded && (
+            <span className="text-white font-medium">{getInitial()}</span>
+          )}
           <Image
             src={profileImage}
             alt={displayName}
@@ -412,12 +423,18 @@ const HeaderControls = () => {
             sizes={size === "small" ? "30px" : "40px"}
             className="object-cover"
             priority={true}
+            onLoad={() => setIsImageLoaded(true)}
+            onError={() => setIsImageLoaded(false)}
           />
         </div>
       );
     }
 
-    return getInitial();
+    return (
+      <div className="w-full h-full relative rounded-full overflow-hidden flex items-center justify-center">
+        <span className="text-white font-medium">{getInitial()}</span>
+      </div>
+    );
   };
 
   const dropdownVariants = {

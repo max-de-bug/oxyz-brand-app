@@ -2,9 +2,8 @@
 import { Plus, Trash2, Loader2, Cloud } from "lucide-react";
 import { useDesignStore } from "../../store/designStore";
 import { useImageStore } from "@/app/store/imageStore";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/app/store/auth-context";
-import { signIn } from "next-auth/react";
 import {
   useSaveDesign,
   useSavedDesigns,
@@ -43,6 +42,89 @@ interface SavedDesign {
   aspectRatio: string;
 }
 
+// Custom hook for design loading
+const useDesignLoader = () => {
+  const {
+    setImage,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    reset,
+  } = useImageStore();
+  const { setTextOverlay, setAspectRatio } = useDesignStore();
+
+  const loadDesign = useCallback(
+    async (design: SavedDesign) => {
+      try {
+        // Load the main image
+        if (design.imageUrl) {
+          setImage(design.imageUrl);
+        }
+
+        // Apply filters if present
+        if (design.filter) {
+          const { brightness, contrast, saturation, sepia, opacity } =
+            design.filter;
+          setBrightness(brightness);
+          setContrast(contrast);
+          setSaturation(saturation);
+          setSepia(sepia);
+          setOpacity(opacity);
+        }
+
+        // Reset state and add logos if present
+        reset();
+        if (design.logos && design.logos.length > 0) {
+          design.logos.forEach((logo) => {
+            useImageStore.getState().addLogo(logo.url);
+          });
+        }
+
+        // Set text overlay if present
+        if (design.textOverlay) {
+          setTextOverlay(design.textOverlay);
+        } else {
+          // Clear text overlay if not present in the design
+          setTextOverlay({
+            text: "",
+            isVisible: false,
+            color: "#FFFFFF",
+            fontFamily: "Arial",
+            fontSize: 24,
+            isBold: false,
+            isItalic: false,
+          });
+        }
+
+        // Set aspect ratio if present
+        if (design.aspectRatio) {
+          setAspectRatio(design.aspectRatio);
+        }
+
+        return true;
+      } catch (error) {
+        console.error("Error loading design:", error);
+        return false;
+      }
+    },
+    [
+      setImage,
+      setBrightness,
+      setContrast,
+      setSaturation,
+      setSepia,
+      setOpacity,
+      reset,
+      setTextOverlay,
+      setAspectRatio,
+    ]
+  );
+
+  return { loadDesign };
+};
+
 const SavedDesigns = () => {
   const { session } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
@@ -51,22 +133,21 @@ const SavedDesigns = () => {
   );
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Get access to the canvas capture function
-
   // Get current design state
   const {
-    imageUrl,
+    images,
     logos,
     brightness,
     contrast,
     saturation,
     sepia,
     opacity,
-    clearMainImage,
+    reset,
   } = useImageStore();
 
   const { textOverlay, aspectRatio, currentDesignId, setCurrentDesignId } =
     useDesignStore();
+  const { loadDesign } = useDesignLoader();
 
   // React Query hooks with type annotation
   const saveDesignMutation = useSaveDesign();
@@ -76,7 +157,7 @@ const SavedDesigns = () => {
 
   // Handle saving the current design
   const handleSaveDesign = async () => {
-    if (!imageUrl) {
+    if (!images.length) {
       toast({
         variant: "destructive",
         title: "Error",
@@ -176,7 +257,7 @@ const SavedDesigns = () => {
           description: "Click the delete button again to confirm.",
           duration: 3000,
         });
-        clearMainImage();
+        reset();
         return;
       }
 
@@ -211,57 +292,30 @@ const SavedDesigns = () => {
     }
   };
 
-  const handleLoadDesign = (design: SavedDesign) => {
-    // Set current design ID in the store
-    setCurrentDesignId(design.id);
+  const handleLoadDesign = async (design: SavedDesign) => {
+    try {
+      // Set current design ID in the store
+      setCurrentDesignId(design.id);
 
-    // Load the main image
-    if (design.imageUrl) {
-      useImageStore.getState().setImage(design.imageUrl);
-    }
+      // Load the design using our custom hook
+      const success = await loadDesign(design);
 
-    // Apply filters if present
-    if (design.filter) {
-      useImageStore.getState().setFilter({
-        brightness: design.filter.brightness,
-        contrast: design.filter.contrast,
-        saturation: design.filter.saturation,
-        sepia: design.filter.sepia,
-        opacity: design.filter.opacity,
+      if (success) {
+        toast({
+          title: "Design Loaded",
+          description: "The selected design has been loaded to the canvas.",
+        });
+      } else {
+        throw new Error("Failed to load design");
+      }
+    } catch (error) {
+      console.error("Error loading design:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load design. Please try again.",
       });
     }
-
-    // Clear existing logos first
-    useImageStore.getState().clearLogos();
-
-    // Add logos if present
-
-    // Set text overlay if present
-    if (design.textOverlay) {
-      useDesignStore.getState().setTextOverlay(design.textOverlay);
-    } else {
-      // Clear text overlay if not present in the design
-      useDesignStore.getState().setTextOverlay({
-        text: "",
-        isVisible: false,
-        color: "#FFFFFF",
-        fontFamily: "Arial",
-        fontSize: 24,
-        isBold: false,
-        isItalic: false,
-      });
-    }
-
-    // Set aspect ratio if present
-    if (design.aspectRatio) {
-      useDesignStore.getState().setAspectRatio(design.aspectRatio);
-    }
-
-    // Show success toast
-    toast({
-      title: "Design Loaded",
-      description: "The selected design has been loaded to the canvas.",
-    });
   };
 
   // Return early if user is not authenticated
@@ -297,12 +351,12 @@ const SavedDesigns = () => {
         </div>
 
         {/* Preview Features */}
-        {imageUrl && (
+        {images.length > 0 && (
           <div className="mt-6">
             <h3 className="text-sm font-medium mb-2">Current Design</h3>
             <div className="aspect-square rounded-lg overflow-hidden border border-gray-300 dark:border-gray-700 relative">
               <img
-                src={imageUrl}
+                src={images[0]?.url}
                 alt="Current design"
                 className="w-full h-full object-cover"
                 style={{
@@ -328,11 +382,13 @@ const SavedDesigns = () => {
         <h2 className="text-lg font-semibold">Saved Designs</h2>
         <button
           onClick={handleSaveDesign}
-          disabled={isSaving || !imageUrl}
+          disabled={isSaving || images.length === 0}
           className={`p-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 
-            ${!imageUrl ? "opacity-50 cursor-not-allowed" : ""}`}
+            ${images.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
           title={
-            imageUrl ? "Save current design" : "Add an image to save design"
+            images.length > 0
+              ? "Save current design"
+              : "Add an image to save design"
           }
         >
           {isSaving ? (

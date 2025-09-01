@@ -77,11 +77,6 @@ const TextControls = () => {
   // Get the currently selected text
   const selectedText = getSelectedText();
 
-  // Reset editing state when selected text changes
-  useEffect(() => {
-    setEditingTextId(null);
-  }, [selectedText]);
-
   // Update the global editing state
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -97,6 +92,30 @@ const TextControls = () => {
   // Handle adding new text
   const handleAddText = () => {
     if (newTextInput.trim()) {
+      // If there's a selected text, add new text after it
+      if (selectedText) {
+        const selectedIndex = textOverlays.findIndex(
+          (t) => t.id === selectedText.id
+        );
+        if (selectedIndex !== -1) {
+          addText(newTextInput.trim());
+          setNewTextInput("");
+
+          // Select the newly added text
+          setTimeout(() => {
+            const newlyAddedText = useDesignStore
+              .getState()
+              .textOverlays.slice(-1)[0];
+            if (newlyAddedText) {
+              selectTextById(newlyAddedText.id);
+              startEditing(newlyAddedText);
+            }
+          }, 0);
+          return;
+        }
+      }
+
+      // If no text is selected, add at the default position
       addText(newTextInput.trim());
       setNewTextInput("");
     }
@@ -134,12 +153,32 @@ const TextControls = () => {
     }
   };
 
+  // Handle input changes during editing
+  const handleEditingInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setEditingTextValue(newValue);
+
+    // Update text on canvas in real-time without affecting selection
+    if (editingTextId) {
+      const textToUpdate = textOverlays.find((t) => t.id === editingTextId);
+      if (textToUpdate) {
+        updateText(editingTextId, {
+          text: newValue,
+          isSelected: true,
+        });
+      }
+    }
+  };
+
   // Start editing a text item
   const startEditing = (text: TextOverlay) => {
+    // Prevent starting edit if already editing
+    if (editingTextId) return;
+
     setEditingTextId(text.id);
     setEditingTextValue(text.text);
 
-    // Focus the input field after a short delay (to allow the input to render)
+    // Focus the input field after a short delay
     setTimeout(() => {
       if (editingInputRef.current) {
         editingInputRef.current.focus();
@@ -147,36 +186,80 @@ const TextControls = () => {
     }, 50);
   };
 
+  // Handle key press in editing input
+  const handleEditingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Stop propagation for all key events to prevent global handlers from firing
+    e.stopPropagation();
+
+    // Handle shift+enter to add new text
+    if (e.key === "Enter" && e.shiftKey) {
+      e.preventDefault();
+      if (editingTextId) {
+        // Save current text first
+        saveEditedText();
+
+        // Add new text after the current one
+        const currentTextIndex = textOverlays.findIndex(
+          (t) => t.id === editingTextId
+        );
+        if (currentTextIndex !== -1) {
+          const newText = {
+            ...DEFAULT_TEXT_VALUES,
+            text: "New Text",
+            position: {
+              x: textOverlays[currentTextIndex].position.x,
+              y: textOverlays[currentTextIndex].position.y + 30, // Offset below current text
+            },
+          };
+          addText(newText.text);
+
+          // Select the newly added text
+          setTimeout(() => {
+            const newlyAddedText = useDesignStore
+              .getState()
+              .textOverlays.slice(-1)[0];
+            if (newlyAddedText) {
+              selectTextById(newlyAddedText.id);
+              startEditing(newlyAddedText);
+            }
+          }, 0);
+        }
+      }
+      return;
+    }
+
+    // Handle regular enter and escape
+    if (e.key === "Enter") {
+      saveEditedText();
+    } else if (e.key === "Escape") {
+      cancelEditing();
+    }
+  };
+
   // Save the edited text
   const saveEditedText = () => {
     if (editingTextId && editingTextValue.trim()) {
-      updateText(editingTextId, { text: editingTextValue.trim() });
+      updateText(editingTextId, {
+        text: editingTextValue.trim(),
+        isSelected: true,
+      });
     }
     setEditingTextId(null);
   };
 
   // Cancel text editing
   const cancelEditing = () => {
-    setEditingTextId(null);
-  };
-
-  // Handle input changes during editing
-  const handleEditingInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingTextValue(e.target.value);
-  };
-
-  // Handle key press in editing input
-  const handleEditingKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Stop propagation for all key events to prevent global handlers from firing
-    e.stopPropagation();
-
-    // Only handle Enter and Escape keys to save or cancel
-    if (e.key === "Enter") {
-      saveEditedText();
-    } else if (e.key === "Escape") {
-      cancelEditing();
+    if (editingTextId) {
+      // Restore original text when canceling
+      const originalText = textOverlays.find((t) => t.id === editingTextId);
+      if (originalText) {
+        updateText(editingTextId, {
+          text: originalText.text,
+          isSelected: true,
+        });
+      }
     }
-    // Allow all other keys (including Backspace) to work normally
+    setEditingTextId(null);
   };
 
   // Get the active text properties (selected text or defaults)

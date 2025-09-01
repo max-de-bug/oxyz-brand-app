@@ -14,11 +14,20 @@ export interface SavedImage {
   height?: number;
 }
 
+export interface CanvasImage {
+  id: string;
+  url: string;
+  position: { x: number; y: number };
+  scale: number;
+  isSelected: boolean;
+  zIndex: number;
+}
+
 export interface CanvasLogo {
   id: string;
   url: string;
-  size: number;
   position: { x: number; y: number };
+  size: number;
   rotation: number;
   isSelected: boolean;
 }
@@ -29,10 +38,11 @@ export interface Filter {
   saturation: number;
   sepia: number;
   opacity: number;
+  blur: number;
 }
 
 interface ImageState {
-  imageUrl: string | null;
+  images: CanvasImage[];
   logos: CanvasLogo[];
   savedImages: SavedImage[];
   brightness: number;
@@ -40,21 +50,27 @@ interface ImageState {
   saturation: number;
   sepia: number;
   opacity: number;
+  blur: number;
   isLoading: boolean;
   error: string | null;
+  selectedImageId: string | null;
 
   // Actions
-  setImage: (url: string) => void;
-  clearMainImage: () => void;
-  addLogo: (url: string) => string;
+  addImage: (url: string) => void;
+  removeImage: (id: string) => void;
+  updateImage: (id: string, updates: Partial<Omit<CanvasImage, "id">>) => void;
+  selectImage: (id: string | null) => void;
+  reorderImage: (id: string, newZIndex: number) => void;
+  addLogo: (url: string) => void;
+  removeLogo: (id: string) => void;
   updateLogo: (id: string, updates: Partial<Omit<CanvasLogo, "id">>) => void;
   selectLogo: (id: string | null) => void;
-  deleteLogo: (id: string) => void;
-  reorderLogos: (fromIndex: number, toIndex: number) => void;
-  setFilter: (filter: Partial<Filter>) => void;
-  resetFilter: () => void;
-  clearLogos: () => void;
-  clearSavedImages: () => void;
+  setBrightness: (value: number) => void;
+  setContrast: (value: number) => void;
+  setSaturation: (value: number) => void;
+  setSepia: (value: number) => void;
+  setOpacity: (value: number) => void;
+  setBlur: (value: number) => void;
   reset: () => void;
   uploadImage: (file: File) => Promise<SavedImage>;
   deleteImage: (id: string) => Promise<void>;
@@ -62,11 +78,12 @@ interface ImageState {
   fetchCloudinaryImages: (userId: string) => Promise<void>;
   fetchUserImages: () => Promise<void>;
   clearError: () => void;
+  setImage: (url: string) => void;
 }
 
 export const useImageStore = create<ImageState>((set, get) => ({
   // Initial state
-  imageUrl: null,
+  images: [],
   logos: [],
   savedImages: [],
   brightness: 100,
@@ -74,157 +91,112 @@ export const useImageStore = create<ImageState>((set, get) => ({
   saturation: 100,
   sepia: 0,
   opacity: 100,
+  blur: 0,
   isLoading: false,
   error: null,
+  selectedImageId: null,
 
   // Actions
-  setImage: (url) => {
-    console.log("ImageStore: setImage called with URL:", url);
-    console.log("ImageStore: URL type:", typeof url);
-    console.log("ImageStore: URL details:", {
-      length: url.length,
-      startsWith: url.startsWith("http"),
-      containsCloudinary: url.includes("cloudinary.com"),
-    });
-
-    set((state) => {
-      console.log("ImageStore: Current state before setImage:", state);
-      const newState = { imageUrl: url };
-      console.log("ImageStore: New state after setImage:", newState);
-      return newState;
-    });
-  },
-
-  clearMainImage: () => {
-    // Get the preset store actions
-    const { setActivePreset, setSelectedPreset } = usePresetStore.getState();
-    const {
-      setCurrentDesignId,
-      setTextOverlay,
-      deleteText,
-      selectTextById,
-      clearTextOverlays,
-    } = useDesignStore.getState();
-
-    set({
-      imageUrl: null,
-      logos: [],
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      sepia: 0,
-      opacity: 100,
-    });
-
-    // Clear legacy text overlay
-    setTextOverlay({
-      text: "",
-      isVisible: false,
-      color: "#FFFFFF",
-      fontFamily: "Arial",
-      fontSize: 24,
-      isBold: false,
-      isItalic: false,
-      position: { x: 50, y: 50 },
-      translationX: 0,
-      translationY: 0,
-      rotation: 0,
-      spacing: 0,
-      isSelected: false,
-    });
-    deleteText();
-
-    // Clear all text overlays from the textOverlays array
-    clearTextOverlays();
-
-    // Ensure no text is selected
-    selectTextById(null);
-
-    setActivePreset(null);
-    setSelectedPreset(null);
-    setCurrentDesignId(null);
-  },
-
-  addLogo: (url) => {
-    const newLogo = {
-      id: uuidv4(),
-      url,
-      size: 20,
-      position: { x: 50, y: 50 },
-      rotation: 0,
-      isSelected: false,
-    };
+  addImage: (url) =>
     set((state) => ({
-      logos: [...state.logos, newLogo],
-    }));
-    return newLogo.id;
-  },
+      images: [
+        ...state.images,
+        {
+          id: crypto.randomUUID(),
+          url,
+          position: { x: 50, y: 50 },
+          scale: 1,
+          isSelected: true,
+          zIndex: state.images.length,
+        },
+      ],
+    })),
 
-  updateLogo: (id, updates) => {
+  removeImage: (id) =>
+    set((state) => ({
+      images: state.images.filter((img) => img.id !== id),
+      selectedImageId:
+        state.selectedImageId === id ? null : state.selectedImageId,
+    })),
+
+  updateImage: (id, updates) =>
+    set((state) => ({
+      images: state.images.map((img) =>
+        img.id === id ? { ...img, ...updates } : img
+      ),
+    })),
+
+  selectImage: (id) =>
+    set((state) => ({
+      images: state.images.map((img) => ({
+        ...img,
+        isSelected: img.id === id,
+      })),
+      selectedImageId: id,
+    })),
+
+  reorderImage: (id, newZIndex) =>
+    set((state) => {
+      const images = [...state.images];
+      const oldIndex = images.findIndex((img) => img.id === id);
+      if (oldIndex === -1) return state;
+
+      const [movedImage] = images.splice(oldIndex, 1);
+      images.splice(newZIndex, 0, movedImage);
+
+      return {
+        images: images.map((img, index) => ({
+          ...img,
+          zIndex: index,
+        })),
+      };
+    }),
+
+  addLogo: (url) =>
+    set((state) => ({
+      logos: [
+        ...state.logos,
+        {
+          id: crypto.randomUUID(),
+          url,
+          position: { x: 50, y: 50 },
+          size: 20,
+          rotation: 0,
+          isSelected: true,
+        },
+      ],
+    })),
+
+  removeLogo: (id) =>
+    set((state) => ({
+      logos: state.logos.filter((logo) => logo.id !== id),
+    })),
+
+  updateLogo: (id, updates) =>
     set((state) => ({
       logos: state.logos.map((logo) =>
         logo.id === id ? { ...logo, ...updates } : logo
       ),
-    }));
-  },
+    })),
 
-  selectLogo: (id) => {
+  selectLogo: (id) =>
     set((state) => ({
       logos: state.logos.map((logo) => ({
         ...logo,
         isSelected: logo.id === id,
       })),
-    }));
-  },
-
-  deleteLogo: (id) => {
-    set((state) => ({
-      logos: state.logos.filter((logo) => logo.id !== id),
-    }));
-  },
-
-  reorderLogos: (fromIndex, toIndex) => {
-    set((state) => {
-      const logos = [...state.logos];
-      const [removed] = logos.splice(fromIndex, 1);
-      logos.splice(toIndex, 0, removed);
-      return { logos };
-    });
-  },
-
-  setFilter: (filter: Partial<Filter>) =>
-    set((state) => ({
-      brightness:
-        filter.brightness !== undefined ? filter.brightness : state.brightness,
-      contrast:
-        filter.contrast !== undefined ? filter.contrast : state.contrast,
-      saturation:
-        filter.saturation !== undefined ? filter.saturation : state.saturation,
-      sepia: filter.sepia !== undefined ? filter.sepia : state.sepia,
-      opacity: filter.opacity !== undefined ? filter.opacity : state.opacity,
     })),
 
-  resetFilter: () => {
-    set({
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      sepia: 0,
-      opacity: 100,
-    });
-  },
-
-  clearLogos: () => {
-    set({ logos: [] });
-  },
-
-  clearSavedImages: () => {
-    set({ savedImages: [] });
-  },
+  setBrightness: (value) => set({ brightness: value }),
+  setContrast: (value) => set({ contrast: value }),
+  setSaturation: (value) => set({ saturation: value }),
+  setSepia: (value) => set({ sepia: value }),
+  setOpacity: (value) => set({ opacity: value }),
+  setBlur: (value) => set({ blur: value }),
 
   reset: () => {
     set({
-      imageUrl: null,
+      images: [],
       logos: [],
       savedImages: [],
       brightness: 100,
@@ -232,8 +204,28 @@ export const useImageStore = create<ImageState>((set, get) => ({
       saturation: 100,
       sepia: 0,
       opacity: 100,
+      blur: 0,
     });
   },
+
+  setImage: (url) =>
+    set((state) => ({
+      images: [
+        {
+          id: crypto.randomUUID(),
+          url,
+          position: { x: 50, y: 50 },
+          scale: 1,
+          isSelected: true,
+          zIndex: 0,
+        },
+        ...state.images.map((img) => ({
+          ...img,
+          isSelected: false,
+          zIndex: img.zIndex + 1,
+        })),
+      ],
+    })),
 
   uploadImage: async (file: File): Promise<SavedImage> => {
     set({ isLoading: true, error: null });
@@ -283,7 +275,7 @@ export const useImageStore = create<ImageState>((set, get) => ({
         await apiClient.delete(`images/${publicId}`);
       }
 
-      // Update state: remove the deleted image and clear main image if it was selected
+      // Update state: remove the deleted image and clear selected image if it was selected
       set((state) => {
         // Find the image that's being deleted to get its URL if needed
         const deletedImage = state.savedImages.find(
@@ -295,9 +287,13 @@ export const useImageStore = create<ImageState>((set, get) => ({
           savedImages: state.savedImages.filter(
             (img) => img.id !== publicId && img.publicId !== publicId
           ),
-          // Clear main image if it was the one deleted
-          imageUrl:
-            deletedImage?.url === state.imageUrl ? null : state.imageUrl,
+          // Remove the image from the images array if it exists
+          images: state.images.filter((img) => img.url !== deletedImage?.url),
+          // Clear selected image if it was the one deleted
+          selectedImageId:
+            state.selectedImageId === deletedImage?.id
+              ? null
+              : state.selectedImageId,
           isLoading: false,
         };
       });

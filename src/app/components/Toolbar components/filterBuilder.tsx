@@ -43,19 +43,26 @@ const FilterBuilder = () => {
       saturation: 100,
       sepia: 0,
       opacity: 100,
+      blur: 0,
     },
   });
 
   const { toast } = useToast();
   const {
-    setFilter,
-    resetFilter,
-    imageUrl,
-    brightness,
-    contrast,
-    saturation,
-    sepia,
-    opacity,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    setBlur,
+    reset,
+    images,
+    brightness: imageBrightness,
+    contrast: imageContrast,
+    saturation: imageSaturation,
+    sepia: imageSepia,
+    opacity: imageOpacity,
+    blur: imageBlur,
   } = useImageStore();
 
   // Replace filter store with React Query hooks
@@ -79,28 +86,42 @@ const FilterBuilder = () => {
   // Apply filter changes in real-time to the canvas
   useEffect(() => {
     if (newFilter.filter) {
-      setFilter({
-        brightness: newFilter.filter.brightness || 100,
-        contrast: newFilter.filter.contrast || 100,
-        saturation: newFilter.filter.saturation || 100,
-        sepia: newFilter.filter.sepia || 0,
-        opacity: newFilter.filter.opacity || 100,
-      });
+      setBrightness(newFilter.filter.brightness || 100);
+      setContrast(newFilter.filter.contrast || 100);
+      setSaturation(newFilter.filter.saturation || 100);
+      setSepia(newFilter.filter.sepia || 0);
+      setOpacity(newFilter.filter.opacity || 100);
+      setBlur(newFilter.filter.blur || 0);
     }
-  }, [newFilter.filter, setFilter]);
+  }, [
+    newFilter.filter,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    setBlur,
+  ]);
 
   // Apply selected filter to the canvas
   useEffect(() => {
     if (selectedFilter) {
-      setFilter({
-        brightness: selectedFilter.filter.brightness || 100,
-        contrast: selectedFilter.filter.contrast || 100,
-        saturation: selectedFilter.filter.saturation || 100,
-        sepia: selectedFilter.filter.sepia || 0,
-        opacity: selectedFilter.filter.opacity || 100,
-      });
+      setBrightness(selectedFilter.filter.brightness || 100);
+      setContrast(selectedFilter.filter.contrast || 100);
+      setSaturation(selectedFilter.filter.saturation || 100);
+      setSepia(selectedFilter.filter.sepia || 0);
+      setOpacity(selectedFilter.filter.opacity || 100);
+      setBlur(selectedFilter.filter.blur || 0);
     }
-  }, [selectedFilter, setFilter]);
+  }, [
+    selectedFilter,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    setBlur,
+  ]);
 
   const handleSliderChange = (property: string, value: number) => {
     setNewFilter((prev) => ({
@@ -140,6 +161,7 @@ const FilterBuilder = () => {
           saturation: 100,
           sepia: 0,
           opacity: 100,
+          blur: 0,
         },
       });
     } catch (error) {
@@ -174,13 +196,12 @@ const FilterBuilder = () => {
       filterStore.setActiveFilter(null);
 
       // Reset filter values to defaults
-      setFilter({
-        brightness: 100,
-        contrast: 100,
-        saturation: 100,
-        sepia: 0,
-        opacity: 100,
-      });
+      setBrightness(100);
+      setContrast(100);
+      setSaturation(100);
+      setSepia(0);
+      setOpacity(100);
+      setBlur(0);
 
       toast({
         title: "Filter Removed",
@@ -192,13 +213,12 @@ const FilterBuilder = () => {
       filterStore.setActiveFilter(filter);
 
       // Apply the filter values to the image
-      setFilter({
-        brightness: filter.filter.brightness || 100,
-        contrast: filter.filter.contrast || 100,
-        saturation: filter.filter.saturation || 100,
-        sepia: filter.filter.sepia || 0,
-        opacity: filter.filter.opacity || 100,
-      });
+      setBrightness(filter.filter.brightness || 100);
+      setContrast(filter.filter.contrast || 100);
+      setSaturation(filter.filter.saturation || 100);
+      setSepia(filter.filter.sepia || 0);
+      setOpacity(filter.filter.opacity || 100);
+      setBlur(filter.filter.blur || 0);
 
       toast({
         title: "Filter Applied",
@@ -209,7 +229,7 @@ const FilterBuilder = () => {
 
   const handleResetFilters = () => {
     // Reset filters to default values
-    resetFilter();
+    reset();
 
     // Reset active filter in filter store
     filterStore.setActiveFilter(null);
@@ -224,6 +244,7 @@ const FilterBuilder = () => {
         saturation: 100,
         sepia: 0,
         opacity: 100,
+        blur: 0,
       },
     });
 
@@ -236,7 +257,7 @@ const FilterBuilder = () => {
   // Render sign-in prompt for non-authenticated users
   if (!session) {
     return (
-      <div className="p-4 border-b border-neutral-200 dark:border-neutral-800">
+      <div className="p-4 border-b border-neutral-200 dark-border-neutral-800">
         <div className="flex justify-between mb-4">
           <h3 className="text-sm font-medium flex items-center gap-1">
             <Sliders size={16} />
@@ -244,8 +265,8 @@ const FilterBuilder = () => {
           </h3>
           <div className="flex items-center gap-2">
             <button
-              onClick={resetFilter}
-              className="text-xs text-blue-500 hover:text-blue-700 flex items-center"
+              onClick={reset}
+              className="text-xs text-blue-500 hover-text-blue-700 flex items-center"
               title="Reset filters to default values"
             >
               <RotateCcw size={14} className="mr-1" />
@@ -261,16 +282,16 @@ const FilterBuilder = () => {
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">Brightness</Label>
-              <span className="text-xs text-neutral-500">{brightness}%</span>
+              <span className="text-xs text-neutral-500">
+                {imageBrightness}%
+              </span>
             </div>
             <Slider
-              value={[brightness]}
+              value={[imageBrightness]}
               min={0}
               max={200}
               step={1}
-              onValueChange={(value) =>
-                setFilter({ ...useImageStore.getState(), brightness: value[0] })
-              }
+              onValueChange={(value) => setBrightness(value[0])}
             />
           </div>
 
@@ -278,16 +299,14 @@ const FilterBuilder = () => {
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">Contrast</Label>
-              <span className="text-xs text-neutral-500">{contrast}%</span>
+              <span className="text-xs text-neutral-500">{imageContrast}%</span>
             </div>
             <Slider
-              value={[contrast]}
+              value={[imageContrast]}
               min={0}
               max={200}
               step={1}
-              onValueChange={(value) =>
-                setFilter({ ...useImageStore.getState(), contrast: value[0] })
-              }
+              onValueChange={(value) => setContrast(value[0])}
             />
           </div>
 
@@ -295,16 +314,16 @@ const FilterBuilder = () => {
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">Saturation</Label>
-              <span className="text-xs text-neutral-500">{saturation}%</span>
+              <span className="text-xs text-neutral-500">
+                {imageSaturation}%
+              </span>
             </div>
             <Slider
-              value={[saturation]}
+              value={[imageSaturation]}
               min={0}
               max={200}
               step={1}
-              onValueChange={(value) =>
-                setFilter({ ...useImageStore.getState(), saturation: value[0] })
-              }
+              onValueChange={(value) => setSaturation(value[0])}
             />
           </div>
 
@@ -312,16 +331,14 @@ const FilterBuilder = () => {
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">Sepia</Label>
-              <span className="text-xs text-neutral-500">{sepia}%</span>
+              <span className="text-xs text-neutral-500">{imageSepia}%</span>
             </div>
             <Slider
-              value={[sepia]}
+              value={[imageSepia]}
               min={0}
               max={100}
               step={1}
-              onValueChange={(value) =>
-                setFilter({ ...useImageStore.getState(), sepia: value[0] })
-              }
+              onValueChange={(value) => setSepia(value[0])}
             />
           </div>
 
@@ -329,35 +346,49 @@ const FilterBuilder = () => {
           <div>
             <div className="flex justify-between items-center mb-1">
               <Label className="text-xs">Opacity</Label>
-              <span className="text-xs text-neutral-500">{opacity}%</span>
+              <span className="text-xs text-neutral-500">{imageOpacity}%</span>
             </div>
             <Slider
-              value={[opacity]}
+              value={[imageOpacity]}
               min={0}
               max={100}
               step={1}
-              onValueChange={(value) =>
-                setFilter({ ...useImageStore.getState(), opacity: value[0] })
-              }
+              onValueChange={(value) => setOpacity(value[0])}
+            />
+          </div>
+
+          {/* Blur Slider */}
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <Label className="text-xs">Blur</Label>
+              <span className="text-xs text-neutral-500">{imageBlur}px</span>
+            </div>
+            <Slider
+              value={[imageBlur]}
+              min={0}
+              max={20}
+              step={0.5}
+              onValueChange={(value) => setBlur(value[0])}
             />
           </div>
         </div>
 
         {/* Preview for non-authenticated users */}
-        {imageUrl && (
+        {images.length > 0 && (
           <div className="mt-3 p-2 border rounded bg-white">
             <div className="text-xs text-center mb-1">Preview</div>
             <div
               className="h-16 bg-cover bg-center rounded"
               style={{
-                backgroundImage: `url(${imageUrl})`,
+                backgroundImage: `url(${images[0].url})`,
                 filter: `
-                  brightness(${brightness}%) 
-                  contrast(${contrast}%) 
-                  saturate(${saturation}%) 
-                  sepia(${sepia}%)
+                  brightness(${imageBrightness}%)
+                  contrast(${imageContrast}%)
+                  saturate(${imageSaturation}%)
+                  sepia(${imageSepia}%)
+                  blur(${imageBlur}px)
                 `,
-                opacity: `${opacity / 100}`,
+                opacity: `${imageOpacity}%`,
               }}
             ></div>
           </div>
@@ -512,6 +543,23 @@ const FilterBuilder = () => {
             max={100}
             step={1}
             onValueChange={(value) => handleSliderChange("opacity", value[0])}
+          />
+        </div>
+
+        {/* Blur Slider */}
+        <div>
+          <div className="flex justify-between items-center mb-1">
+            <Label className="text-xs">Blur</Label>
+            <span className="text-xs text-neutral-500">
+              {newFilter.filter?.blur}px
+            </span>
+          </div>
+          <Slider
+            value={[newFilter.filter?.blur || 0]}
+            min={0}
+            max={20}
+            step={0.5}
+            onValueChange={(value) => handleSliderChange("blur", value[0])}
           />
         </div>
       </div>

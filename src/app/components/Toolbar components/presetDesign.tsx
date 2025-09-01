@@ -26,7 +26,15 @@ import Link from "next/link";
 
 const PresetDesigns = () => {
   const { session } = useAuth();
-  const { setImage, setFilter } = useImageStore();
+  const {
+    addImage,
+    setBrightness,
+    setContrast,
+    setSaturation,
+    setSepia,
+    setOpacity,
+    reset,
+  } = useImageStore();
   const {
     cloudinaryPresets: displayPresets,
     selectedPreset,
@@ -98,18 +106,21 @@ const PresetDesigns = () => {
 
     // If we have filter settings, apply them
     if (filterSettings) {
-      setFilter(filterSettings);
+      setBrightness(filterSettings.brightness);
+      setContrast(filterSettings.contrast);
+      setSaturation(filterSettings.saturation);
+      setSepia(filterSettings.sepia);
+      setOpacity(filterSettings.opacity);
     }
 
     // Apply image if present
     if (preset.url) {
-      setImage(preset.url);
+      addImage(preset.url);
     }
   };
 
   const handleRemovePreset = () => {
-    const { clearMainImage } = useImageStore.getState();
-    clearMainImage();
+    reset();
   };
 
   const handleDeletePreset = async (id: string) => {
