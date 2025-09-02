@@ -6,6 +6,7 @@ import { TextOverlay, useDesignStore } from "@/app/store/designStore";
 import { useFilterStore } from "@/app/store/filterStore";
 
 import { CanvasControls } from "./CanvasControls";
+import { calculateTextRect } from "./CanvasUtils";
 import { useMainImageInteractions } from "./hooks/useMainImageInteractions";
 import { useLogoInteractions } from "./hooks/useLogoInteractions";
 import { useTextInteractions } from "./hooks/useTextInteractions";
@@ -164,57 +165,7 @@ const ModularCanvas = React.memo(() => {
     deleteText,
     selectTextById,
     deleteTextById,
-    calculateTextRect: (canvas, text) => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      // Save context to restore later
-      ctx.save();
-
-      // Set font properties to measure text
-      let fontStyle = "";
-      if (text.isBold) fontStyle += "bold ";
-      if (text.isItalic) fontStyle += "italic ";
-      ctx.font = `${fontStyle}${text.fontSize}px ${text.fontFamily}`;
-
-      // Split text into lines
-      const lines = text.text.split("\n");
-
-      // Calculate line height
-      const lineHeight = text.fontSize * 1.2;
-
-      // Calculate the width of the widest line
-      let maxWidth = 0;
-      lines.forEach((line) => {
-        const lineWidth = ctx.measureText(line).width;
-        maxWidth = Math.max(maxWidth, lineWidth);
-      });
-
-      // Calculate total height
-      const totalHeight = lines.length * lineHeight;
-
-      // Calculate text position
-      const textX =
-        (canvas.width * text.position.x) / 100 + (text.translationX || 0);
-      const textY =
-        (canvas.height * text.position.y) / 100 + (text.translationY || 0);
-
-      // Restore context
-      ctx.restore();
-
-      // Add padding
-      const padding = text.fontSize * 0.5;
-      const width = maxWidth + padding * 2;
-      const height = totalHeight + padding * 2;
-
-      // Return rectangle centered on the text position
-      return {
-        x: textX - width / 2,
-        y: textY - height / 2,
-        width,
-        height,
-      };
-    },
+    calculateTextRect,
     renderCanvas: stableRenderCanvas,
   });
 
