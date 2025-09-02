@@ -24,7 +24,6 @@ import {
   Image,
   Type,
   Layout,
-  Save,
   Share,
 } from "lucide-react";
 

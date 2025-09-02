@@ -25,18 +25,22 @@ type SignInFormData = z.infer<typeof signInSchema>;
 
 export default function SignIn() {
   const router = useRouter();
-  const { signInWithMagicLink, isLoading, error } = useAuth();
+  const { signInWithMagicLink, error } = useAuth();
 
   const [email, setEmail] = useState("");
   const [emailSent, setEmailSent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      setIsSubmitting(true);
       await signInWithMagicLink(email);
       setEmailSent(true);
     } catch (err) {
       console.error("Error sending magic link:", err);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -105,7 +109,7 @@ export default function SignIn() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-4 py-3 bg-[#171717] border border-[#333333] rounded-md text-white placeholder:text-[#555555] focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
                     required
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                   />
                 </div>
 
@@ -122,18 +126,18 @@ export default function SignIn() {
                 <button
                   type="submit"
                   className={`w-full py-3 px-4 rounded-md flex items-center justify-center font-medium transition-all ${
-                    isLoading || !email
+                    isSubmitting || !email
                       ? "bg-[#333333] text-[#888888] cursor-not-allowed"
                       : "bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:opacity-90"
                   }`}
-                  disabled={isLoading || !email}
+                  disabled={isSubmitting || !email}
                 >
-                  {isLoading ? (
+                  {isSubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : (
                     <ArrowRight className="w-4 h-4 mr-2" />
                   )}
-                  {isLoading ? "Sending link..." : "Send Magic Link"}
+                  {isSubmitting ? "Sending link..." : "Send Magic Link"}
                 </button>
               </form>
             </motion.div>
