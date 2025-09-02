@@ -23,7 +23,7 @@ const ModularCanvas = React.memo(() => {
     new Map()
   );
   const [canvasWidth, setCanvasWidth] = useState(800);
-  const [scrollPosition, setScrollPosition] = useState(0);
+  // Removed unused scroll position state
 
   // Add state for tracking mouse position
   const [mouseX, setMouseX] = useState(0);
@@ -334,17 +334,7 @@ const ModularCanvas = React.memo(() => {
 
   ///FIX LOgo rect
 
-  // Update the renderCanvas reference in the hooks
-  useEffect(() => {
-    // This effect ensures the renderCanvas function is properly set in all hooks
-    // after it's been initialized
-
-    // Instead of trying to add properties to the functions, let's update the hooks directly
-    // by calling their respective update methods if available
-
-    // Call the real renderCanvas function once to make sure everything is properly rendered
-    renderCanvas();
-  }, [renderCanvas]);
+  // Removed redundant effect that only called renderCanvas when it changed
 
   // Update the ref whenever renderCanvas changes
   useEffect(() => {
@@ -655,34 +645,16 @@ const ModularCanvas = React.memo(() => {
       return;
     }
 
-    // Set up event listeners
-    const canvas = canvasRef.current;
-
-    // Initial render
-    renderCanvas();
+    // Initial render using the stable ref to avoid re-running when renderCanvas changes
+    renderCanvasRef.current();
 
     // Clean up
     return () => {
       // Any cleanup needed
     };
-  }, [renderCanvas]);
-
-  // Handle scroll events
-  const handleScroll = useCallback(() => {
-    if (typeof window !== "undefined") {
-      setScrollPosition(window.scrollY);
-    }
   }, []);
 
-  // Add scroll event listener
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    // Remove event listener on cleanup
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [handleScroll]);
+  // Removed scroll listener as scroll position is unused
 
   // Add window resize listener
   useEffect(() => {
@@ -958,44 +930,13 @@ const ModularCanvas = React.memo(() => {
   ]);
 
   // Add image upload handler
-  const handleImageUpload = useCallback(
-    (file: File) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          addImage(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    },
-    [addImage]
-  );
 
-  // Add image selection handler
-  const handleImageSelect = useCallback(
-    (id: string) => {
-      selectImage(id);
-    },
-    [selectImage]
-  );
 
   // Add image removal handler
-  const handleImageRemove = useCallback(
-    (id: string) => {
-      if (window.confirm("Are you sure you want to remove this image?")) {
-        removeImage(id);
-      }
-    },
-    [removeImage]
-  );
+ 
 
   // Add image reordering handler
-  const handleImageReorder = useCallback(
-    (id: string, newZIndex: number) => {
-      reorderImage(id, newZIndex);
-    },
-    [reorderImage]
-  );
+
 
   return (
     <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
