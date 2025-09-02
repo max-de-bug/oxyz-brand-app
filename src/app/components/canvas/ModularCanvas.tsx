@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
 import { useImageStore } from "@/app/store/imageStore";
 import { TextOverlay, useDesignStore } from "@/app/store/designStore";
 import { useFilterStore } from "@/app/store/filterStore";
@@ -394,6 +394,16 @@ const ModularCanvas = React.memo(() => {
 
     setCanvasWidth(newWidth);
   }, [mainImage]);
+
+  // Memoize the responsive width calculation
+  const responsiveWidth = useMemo(() => {
+    return viewportWidth < 768 ? "100%" : `${canvasWidth}px`;
+  }, [viewportWidth, canvasWidth]);
+
+  // Memoize the responsive padding
+  const responsivePadding = useMemo(() => {
+    return viewportWidth < 768 ? "12px" : "16px";
+  }, [viewportWidth]);
 
   // Effect to load the main image
   useEffect(() => {
@@ -890,21 +900,18 @@ const ModularCanvas = React.memo(() => {
 
 
   return (
-    <div className="relative mx-auto py-8" style={{ marginRight: "384px" }}>
+    <div className="flex justify-center items-center min-h-screen py-4 px-4 sm:py-8">
       <div
-        className="fixed bg-white dark:bg-neutral-900 rounded-lg shadow-md z-10"
+        className="bg-white dark:bg-neutral-900 rounded-lg shadow-md w-full max-w-full sm:max-w-none"
         style={{
-          left: "calc(50% - 192px)",
-          top: "43%",
-          transform: "translate(-50%, -50%)",
           height: "auto",
-          width: `${canvasWidth}px`,
+          width: responsiveWidth,
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
-          padding: "16px",
-          margin: "20px auto",
+          padding: responsivePadding,
+          margin: "0",
         }}
       >
         <CanvasControls
