@@ -1,5 +1,6 @@
 "use client";
 import { useAuth } from "@/app/store/auth-context";
+import { isCanvasEmpty } from "../canvas/utils/canvasStateUtils";
 import {
   LogOut,
   User,
@@ -67,11 +68,12 @@ const HeaderControls = () => {
   const uploadImageMutation = useUploadImage();
 
   // Check if canvas is empty
-  const canvasIsEmpty =
-    images.length === 0 &&
-    logos.length === 0 &&
-    !textOverlay.isVisible &&
-    textOverlays.length === 0;
+  const canvasIsEmpty = isCanvasEmpty({
+    images,
+    logos,
+    textOverlay,
+    textOverlays,
+  });
 
   // Fetch user profile using React Query
   const {
@@ -645,7 +647,6 @@ const HeaderControls = () => {
         </div>
       </div>
 
-      {/* Bottom tier - Action buttons */}
       <div className="flex justify-between items-center px-6 py-3 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-neutral-100 dark:border-neutral-800 relative z-10">
         <div className="flex items-center gap-3">
           <button

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useImageStore } from "@/app/store/imageStore";
 import { TextOverlay, useDesignStore } from "@/app/store/designStore";
 import { useFilterStore } from "@/app/store/filterStore";
@@ -228,37 +234,88 @@ const ModularCanvas = React.memo(() => {
     });
   }, [images]);
 
+  // Memoize canvas rendering configuration
+  const canvasRenderingConfig = useMemo(
+    () => ({
+      canvasRef,
+      mainImage: loadedImages.get(images[0]?.id) || null,
+      logoImages,
+      logos,
+      textOverlays,
+      legacyTextOverlay: textOverlay,
+      devMode,
+      mainImagePosition,
+      mainImageScale,
+      brightness,
+      contrast,
+      saturation,
+      sepia,
+      opacity,
+      blur,
+      isDraggingText,
+      draggedTextId,
+      isResizingText,
+      resizingTextId,
+      mouseX,
+      mouseY,
+      hoveredLogoId: null,
+      designStoreAspectRatio,
+      canvasWidth,
+    }),
+    [
+      loadedImages,
+      images,
+      logoImages,
+      logos,
+      textOverlays,
+      textOverlay,
+      devMode,
+      mainImagePosition,
+      mainImageScale,
+      brightness,
+      contrast,
+      saturation,
+      sepia,
+      opacity,
+      blur,
+      isDraggingText,
+      draggedTextId,
+      isResizingText,
+      resizingTextId,
+      mouseX,
+      mouseY,
+      designStoreAspectRatio,
+      canvasWidth,
+    ]
+  );
+
   // Update canvas rendering to handle multiple images
-  const {
-    renderCanvas,
-    calculateLogoRectsForCanvas,
-    calculateImageBounds,
-  } = useCanvasRendering({
-    canvasRef,
-    mainImage: loadedImages.get(images[0]?.id) || null,
-    logoImages,
-    logos,
-    textOverlays,
-    legacyTextOverlay: textOverlay,
-    devMode,
-    mainImagePosition,
-    mainImageScale,
-    brightness,
-    contrast,
-    saturation,
-    sepia,
-    opacity,
-    blur,
-    isDraggingText,
-    draggedTextId,
-    isResizingText,
-    resizingTextId,
-    mouseX,
-    mouseY,
-    hoveredLogoId: null,
-    designStoreAspectRatio,
-    canvasWidth,
-  });
+  const { renderCanvas, calculateLogoRectsForCanvas, calculateImageBounds } =
+    useCanvasRendering(canvasRenderingConfig);
+
+  // Memoize logo interactions configuration
+  const logoInteractionsConfig = useMemo(
+    () => ({
+      canvasRef,
+      logos,
+      logoImages,
+      logoRects: calculateLogoRectsForCanvas(),
+      updateLogo,
+      selectLogo,
+      deleteLogo: removeLogo,
+      renderCanvas: stableRenderCanvas,
+    }),
+    [
+      canvasRef,
+      logos,
+      logoImages,
+      calculateLogoRectsForCanvas,
+      updateLogo,
+      selectLogo,
+      removeLogo,
+      stableRenderCanvas,
+    ]
+  );
 
   // Third, get the logo interactions
   const {
@@ -272,16 +329,7 @@ const ModularCanvas = React.memo(() => {
     handleLogoMouseDown,
     handleLogoMouseMove,
     handleLogoMouseUp,
-  } = useLogoInteractions({
-    canvasRef,
-    logos,
-    logoImages,
-    logoRects: calculateLogoRectsForCanvas(),
-    updateLogo,
-    selectLogo,
-    deleteLogo: removeLogo,
-    renderCanvas: stableRenderCanvas,
-  });
+  } = useLogoInteractions(logoInteractionsConfig);
 
   ///FIX LOgo rect
 
@@ -295,20 +343,39 @@ const ModularCanvas = React.memo(() => {
 
   // Effect to apply selected filter from filter store when it changes
   useEffect(() => {
-    if (activeFilter) {
-      console.log("Applying filter from filter store:", activeFilter);
-      // Update image store with filter values
-      const { brightness, contrast, saturation, sepia, opacity, blur } =
-        activeFilter.filter;
-      useImageStore.setState({
-        brightness: brightness || 100,
-        contrast: contrast || 100,
-        saturation: saturation || 100,
-        sepia: sepia || 0,
-        opacity: opacity || 100,
-        blur: blur || 0,
-      });
-    }
+    if (!activeFilter?.filter) return;
+
+    console.log("Applying filter from filter store:", activeFilter);
+
+    // Extract filter values with proper defaults and validation
+    const {
+      brightness = 100,
+      contrast = 100,
+      saturation = 100,
+      sepia = 0,
+      opacity = 100,
+      blur = 0,
+    } = activeFilter.filter;
+
+    // Validate filter values are within reasonable bounds
+    const validatedFilter = {
+      brightness: Math.max(0, Math.min(200, brightness)),
+      contrast: Math.max(0, Math.min(200, contrast)),
+      saturation: Math.max(0, Math.min(200, saturation)),
+      sepia: Math.max(0, Math.min(100, sepia)),
+      opacity: Math.max(0, Math.min(100, opacity)),
+      blur: Math.max(0, Math.min(20, blur)),
+    };
+
+    // Apply filter with a small delay to prevent rapid state updates
+    const timeoutId = setTimeout(() => {
+      useImageStore.setState(validatedFilter);
+    }, 16); // One frame delay
+
+    // Cleanup function to cancel pending updates
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [activeFilter]);
 
   // Add or update this effect for handling aspect ratio when image loads
@@ -892,12 +959,9 @@ const ModularCanvas = React.memo(() => {
 
   // Add image upload handler
 
-
   // Add image removal handler
- 
 
   // Add image reordering handler
-
 
   return (
     <div className="flex justify-center items-center min-h-screen py-4 px-4 sm:py-8">
