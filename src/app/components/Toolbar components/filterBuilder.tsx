@@ -26,7 +26,7 @@ import {
   useFilters,
   useCreateFilter,
   useDeleteFilter,
-} from "@/lib/api/queries";
+} from "@/lib/api/queries/filter-queries";
 import Link from "next/link";
 
 const FilterBuilder = () => {

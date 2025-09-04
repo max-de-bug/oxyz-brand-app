@@ -2,12 +2,15 @@
 
 import React, { useState, useCallback } from "react";
 import { Loader2, RefreshCw, Check, Trash2, Plus } from "lucide-react";
-import { useLogoStore } from "@/store/logoStore";
+import { useLogoStore } from "@/app/store/logoStore";
 import { useImageStore } from "@/app/store/imageStore";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/app/store/auth-context";
 import { Carousel } from "@/components/ui/carousel";
-import { useCloudinaryLogos, useDeleteLogo } from "@/lib/api/queries";
+import {
+  useCloudinaryLogos,
+  useDeleteLogo,
+} from "@/lib/api/queries/logo-queries";
 import Link from "next/link";
 
 const LogoDesigns = () => {

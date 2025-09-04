@@ -21,8 +21,8 @@ import {
   useUserProfile,
   useUpdateUsername,
   useDefaultUserImage,
-  useUploadImage,
-} from "@/lib/api/queries";
+} from "@/lib/api/queries/user-queries";
+import { useUploadImage } from "@/lib/api/queries/image-queries";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";

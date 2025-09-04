@@ -8,7 +8,7 @@ import {
   useSaveDesign,
   useSavedDesigns,
   useDeleteSavedDesign,
-} from "@/lib/api/queries";
+} from "@/lib/api/queries/design-queries";
 import { toast } from "@/hooks/use-toast";
 import { captureVisibleCanvas } from "./exportControls";
 import Link from "next/link";

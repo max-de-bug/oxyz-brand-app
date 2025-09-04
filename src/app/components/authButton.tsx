@@ -19,7 +19,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { z } from "zod";
-import { useUpdateUsername, useUserProfile } from "@/lib/api/queries";
+import {
+  useUpdateUsername,
+  useUserProfile,
+} from "@/lib/api/queries/user-queries";
 
 // Zod schema for username validation
 const usernameSchema = z

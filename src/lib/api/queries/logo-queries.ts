@@ -1,93 +1,97 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-
-interface Logo {
-  id: string;
-  url: string;
-  filename: string;
-  mimeType: string;
-  size: number;
-  width?: number;
-  height?: number;
-  publicId?: string;
-  isDefault: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
+import { Logo } from "@/app/services/logos.service";
+// Define CloudinaryResponse interface locally
 interface CloudinaryResponse {
-  resources: Logo[];
-  next_cursor: string | null;
+  resources: any[];
+  next_cursor?: string | null;
 }
 
-// Query hooks
 export function useLogos() {
   return useQuery({
     queryKey: ["logos"],
-    queryFn: () => apiClient.get<Logo[]>("/logos"),
+    queryFn: () => apiClient.get("/logos"),
   });
 }
 
-export function useCloudinaryLogos(folder = "logos") {
+export function useLogoById(id: string) {
   return useQuery({
-    queryKey: ["cloudinaryLogos", folder],
-    queryFn: async () => {
-      try {
-        return await apiClient.get<CloudinaryResponse>(
-          `/logos/cloudinary?folder=${folder}`
-        );
-      } catch (endpointErr) {
-        // Fallback to general Cloudinary resources endpoint
-        const response = await apiClient.get<CloudinaryResponse>(
-          `/cloudinary/resources?folder=${folder}`
-        );
-        return {
-          resources: response.resources.map((resource: any) => ({
-            id: resource.public_id,
-            url: resource.secure_url,
-            filename: resource.public_id.split("/").pop() || resource.public_id,
-            mimeType: `image/${resource.format}`,
-            size: resource.bytes,
-            width: resource.width,
-            height: resource.height,
-            publicId: resource.public_id,
-            isDefault: resource.tags?.includes("default") || false,
-            createdAt: resource.created_at,
-            updatedAt: resource.created_at,
-          })),
-          next_cursor: response.next_cursor || null,
-        };
-      }
-    },
+    queryKey: ["logos", id],
+    queryFn: () => apiClient.get(`/logos/${id}`),
+    enabled: !!id,
   });
 }
 
-// Mutation hooks
-export function useUploadLogo() {
+export function useCreateLogo() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: async (file: File) => {
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error("File size must be less than 5MB");
-      }
-      if (!file.type.startsWith("image/")) {
-        throw new Error("Only image files are allowed");
-      }
-      return apiClient.uploadFile("/logos", file, { isDefault: false });
-    },
+    mutationFn: (data: any) => apiClient.post("/logos", data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["logos"] });
     },
   });
 }
 
-export function useSetDefaultLogo() {
+export function useCloudinaryLogos(folder = "logos") {
   const queryClient = useQueryClient();
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
+  return useQuery({
+    queryKey: ["logos", "cloudinary", folder],
+    queryFn: async () => {
+      try {
+        const data = await apiClient.getFromCloudinary<{
+          resources: Logo[];
+          next_cursor: string | null;
+        }>("/logos", folder);
+        console.log("data", data);
+        return data;
+      } catch (endpointErr) {
+        console.warn(
+          "Endpoint-specific Cloudinary fetch failed, falling back to general resource fetch"
+        );
+
+        const response =
+          await apiClient.getCloudinaryResources<CloudinaryResponse>(folder);
+
+        const logos = response.resources.map((resource: any) => ({
+          id: resource.public_id,
+          url: resource.secure_url,
+          filename: resource.public_id.split("/").pop() || resource.public_id,
+          mimeType: `image/${resource.format}`,
+          size: resource.bytes,
+          width: resource.width,
+          height: resource.height,
+          publicId: resource.public_id,
+          isDefault:
+            resource.public_id.includes("/defaults/") ||
+            resource.tags?.includes("default") ||
+            false,
+          createdAt: resource.created_at,
+          updatedAt: resource.created_at,
+        }));
+
+        return {
+          resources: logos,
+          next_cursor: response.next_cursor || null,
+        };
+      }
+    },
+    staleTime: 0,
+    gcTime: 0,
+    retry: 1,
+    refetchOnWindowFocus: false,
+    enabled: !!token,
+  });
+}
+
+export function useUploadLogo() {
+  const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (logoId: string) =>
-      apiClient.put(`/logos/${logoId}`, { isDefault: true }),
+    mutationFn: async (file: File) => {
+      return await apiClient.uploadFile("/logos", file, { isDefault: false });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["logos"] });
     },
@@ -96,11 +100,16 @@ export function useSetDefaultLogo() {
 
 export function useDeleteLogo() {
   const queryClient = useQueryClient();
-
   return useMutation({
-    mutationFn: (logoId: string) => apiClient.delete(`/logos/${logoId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["logos"] });
+    mutationFn: async (id: string) => {
+      return await apiClient.delete(`/logos/${id}`);
+    },
+    onSuccess: async () => {
+      await queryClient.removeQueries({ queryKey: ["logos"] });
+      await queryClient.removeQueries({ queryKey: ["logos", "cloudinary"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["logos", "cloudinary"],
+      });
     },
   });
 }

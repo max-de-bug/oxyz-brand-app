@@ -21,7 +21,10 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/app/store/auth-context";
 import { Badge } from "@/components/ui/badge";
 import { Carousel } from "@/components/ui/carousel";
-import { useCloudinaryPresets, useDeletePreset } from "@/lib/api/queries";
+import {
+  useCloudinaryPresets,
+  useDeletePreset,
+} from "@/lib/api/queries/preset-queries";
 import Link from "next/link";
 
 const PresetDesigns = () => {

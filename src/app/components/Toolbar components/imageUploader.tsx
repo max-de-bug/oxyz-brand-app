@@ -12,7 +12,7 @@ import {
   useUserImages,
   useUploadImage,
   useDeleteImage,
-} from "@/lib/api/queries";
+} from "@/lib/api/queries/image-queries";
 import Image from "next/image";
 import Link from "next/link";
 import { useDesignStore } from "@/app/store/designStore";
