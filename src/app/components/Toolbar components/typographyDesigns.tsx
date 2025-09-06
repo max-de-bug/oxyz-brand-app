@@ -1,16 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { ImageIcon, Plus, Loader2, Type, RefreshCw, Cloud } from "lucide-react";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { useTypographyStore } from "@/store/typographyStore";
 import { useAuth } from "@/app/store/auth-context";
-
+import { useTypographyStore } from "@/app/store/typographyStore";
 const TypographyDesigns = () => {
   const { session } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showCloudinary, setShowCloudinary] = useState(false);
 
   const {
     typography,
@@ -22,21 +20,13 @@ const TypographyDesigns = () => {
     error,
     textSize,
     nextCursor,
-    fetchTypography,
     fetchCloudinaryTypography,
     loadMoreCloudinaryTypography,
-    setSelectedTypography,
     setDefault,
     uploadTypography,
     deleteTypography,
     setTextSize,
   } = useTypographyStore();
-
-  useEffect(() => {
-    if (session && showCloudinary) {
-      fetchCloudinaryTypography();
-    }
-  }, [session, showCloudinary, fetchCloudinaryTypography]);
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -58,12 +48,14 @@ const TypographyDesigns = () => {
     await deleteTypography(id);
   };
 
-  const toggleSource = () => {
-    setShowCloudinary(!showCloudinary);
+  const loadTypography = () => {
+    if (session) {
+      fetchCloudinaryTypography();
+    }
   };
 
-  const displayTypography = showCloudinary ? cloudinaryTypography : typography;
-  const isLoading = showCloudinary ? loadingCloudinary : loading;
+  const displayTypography = cloudinaryTypography;
+  const isLoading = loadingCloudinary;
 
   if (!session) {
     return null;
@@ -73,49 +65,38 @@ const TypographyDesigns = () => {
     <div className="my-4">
       <div className="flex justify-between items-center mb-2">
         <h2 className="text-xs font-medium">Typography:</h2>
-        {/* <button
-          onClick={toggleSource}
-          className="text-xs flex items-center gap-1 text-blue-500 hover:text-blue-700"
-          title={
-            showCloudinary
-              ? "Show local typography"
-              : "Show Cloudinary typography"
-          }
+        <button
+          onClick={loadTypography}
+          className="flex items-center gap-1 px-2 py-1 text-xs bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 rounded transition-colors"
+          title="Load typography"
         >
-          {showCloudinary ? (
-            <>Local</>
-          ) : (
-            <>
-              <Cloud className="w-3 h-3" /> Cloudinary
-            </>
-          )}
-        </button> */}
+          <RefreshCw className="w-3 h-3" />
+          Load
+        </button>
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        {/* Add Typography Button (only show for local) */}
-        {!showCloudinary && (
-          <div className="relative">
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleUpload}
-              accept="image/*"
-              className="hidden"
-              id="typography-upload"
-            />
-            <label
-              htmlFor="typography-upload"
-              className="w-8 h-8 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center text-white cursor-pointer"
-            >
-              {uploading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Plus className="w-4 h-4" />
-              )}
-            </label>
-          </div>
-        )}
+        {/* Add Typography Button */}
+        <div className="relative">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleUpload}
+            accept="image/*"
+            className="hidden"
+            id="typography-upload"
+          />
+          <label
+            htmlFor="typography-upload"
+            className="w-8 h-8 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 bg-neutral-800 hover:bg-neutral-700 flex items-center justify-center text-white cursor-pointer"
+          >
+            {uploading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Plus className="w-4 h-4" />
+            )}
+          </label>
+        </div>
 
         {/* Loading State */}
         {isLoading && (
@@ -159,8 +140,8 @@ const TypographyDesigns = () => {
         )}
       </div>
 
-      {/* Load More Button (for Cloudinary) */}
-      {showCloudinary && cloudinaryTypography.length > 0 && nextCursor && (
+      {/* Load More Button */}
+      {cloudinaryTypography.length > 0 && nextCursor && (
         <button
           onClick={loadMoreCloudinaryTypography}
           disabled={loadingCloudinary}
