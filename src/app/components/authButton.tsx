@@ -52,19 +52,13 @@ export default function AuthButton() {
   const currentUsername =
     userProfile?.name || user?.email?.split("@")[0] || "User";
 
-  // Log the user profile data for debugging
-  useEffect(() => {
-    if (userProfile) {
-      console.log("User profile in AuthButton:", userProfile);
-    }
-  }, [userProfile]);
-
-  // Set initial value of newUsername when dialog opens
-  useEffect(() => {
-    if (isOpen && currentUsername) {
+  // Handle dialog open/close and set initial username
+  const handleDialogOpen = (open: boolean) => {
+    setIsOpen(open);
+    if (open && currentUsername) {
       setNewUsername(currentUsername);
     }
-  }, [isOpen, currentUsername]);
+  };
 
   const handleSignIn = () => {
     router.push("/auth/sign-in");
@@ -82,8 +76,7 @@ export default function AuthButton() {
 
       await signOut();
 
-      // Clear any cached queries
-      window.location.href = "/"; // Use full page refresh to clear all states
+      router.push("/");
     } catch (error) {
       console.error("Error signing out:", error);
       toast({
@@ -113,10 +106,6 @@ export default function AuthButton() {
       }
 
       // If username is the same as current, no need to update
-      if (newUsername === currentUsername) {
-        setValidationError("New username is the same as current one");
-        return;
-      }
 
       // Update the username in our database
       await updateUsernameMutation.mutateAsync(newUsername);
@@ -180,7 +169,7 @@ export default function AuthButton() {
         </span>
       </div>
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={handleDialogOpen}>
         <DialogTrigger asChild>
           <Button
             variant="outline"

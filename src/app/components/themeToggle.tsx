@@ -3,22 +3,31 @@
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-export function ThemeToggle() {
+// Define theme types for better type safety
+type Theme = "light" | "dark" | "system";
+
+export function ThemeToggle(): React.ReactElement | null {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  const [mounted, setMounted] = useState<boolean>(false);
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
-  useEffect(() => {
+  // Type-safe theme toggle function
+  const toggleTheme = useCallback((): void => {
+    const currentTheme = theme as Theme;
+    const newTheme: Theme = currentTheme === "dark" ? "light" : "dark";
+    setTheme(newTheme);
+  }, [theme, setTheme]);
+
+  useEffect((): void => {
     setMounted(true);
   }, []);
 
+  // Return null during SSR to prevent hydration mismatch
   if (!mounted) {
     return null;
   }
+
   return (
     <Button
       variant="outline"
