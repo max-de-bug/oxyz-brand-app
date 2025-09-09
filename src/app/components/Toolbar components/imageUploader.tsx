@@ -5,7 +5,6 @@ import { Loader2, Upload, Plus, Trash2, RefreshCw, LogIn } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useImageStore } from "@/app/store/imageStore";
-import { signIn } from "next-auth/react";
 import { useAuth } from "@/app/store/auth-context";
 import { Carousel } from "@/components/ui/carousel";
 import {

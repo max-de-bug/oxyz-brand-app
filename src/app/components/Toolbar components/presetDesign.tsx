@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
 import {
   Loader2,
   RefreshCw,

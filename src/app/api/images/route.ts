@@ -1,8 +1,14 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
+import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
+import { cookies } from "next/headers";
 import cloudinary from "./../../../lib/cloudinary";
+
 export async function GET() {
-  const session = await getServerSession();
+  const supabase = createServerComponentClient({ cookies });
+
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

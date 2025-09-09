@@ -1,7 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import { Logo } from "@/app/services/logos.service";
-// Define CloudinaryResponse interface locally
+
+// Define interfaces locally
+export interface Logo {
+  id: string;
+  url: string;
+  filename: string;
+  userId: string;
+  isDefault?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 interface CloudinaryResponse {
   resources: any[];
   next_cursor?: string | null;

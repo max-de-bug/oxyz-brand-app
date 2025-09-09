@@ -1,5 +1,4 @@
 "use client";
-import { SessionProvider } from "next-auth/react";
 import MainComponent from "./components/mainComponent";
 import { ThemeToggle } from "./components/themeToggle";
 import { ThemeProvider } from "next-themes";

@@ -1,18 +1,49 @@
 import { create } from "zustand";
-import {
-  DesignsService,
-  Design,
-  CreateDesignDto,
-} from "../services/designs.service";
-import { ImagesService } from "../services/images.service";
-import { LogosService } from "../services/logos.service";
 import { apiClient } from "@/lib/api-client";
 
-// Update the Design interface to include designState
-declare module "../services/designs.service" {
-  interface Design {
-    designState?: any;
-  }
+// Design interfaces
+export interface Design {
+  id: string;
+  name: string;
+  imageId: string;
+  logoId?: string;
+  preset: PresetFilter;
+  textOverlay: TextOverlay;
+  position: {
+    translationX: number;
+    translationY: number;
+    rotation: number;
+    minSize: number;
+    maxSize: number;
+    spacing: number;
+  };
+  userId: string;
+  collectionId?: string;
+  createdAt: string;
+  updatedAt: string;
+  source?: "database" | "cloudinary";
+  url?: string;
+  publicId?: string;
+  width?: number;
+  height?: number;
+  format?: string;
+  designState?: any;
+}
+
+export interface CreateDesignDto {
+  name: string;
+  imageId: string;
+  logoId?: string;
+  preset: PresetFilter;
+  textOverlay: TextOverlay;
+  position: {
+    translationX: number;
+    translationY: number;
+    rotation: number;
+    minSize: number;
+    maxSize: number;
+    spacing: number;
+  };
 }
 
 export interface PresetFilter {
@@ -174,7 +205,9 @@ export const useDesignStore = create<DesignState>((set, get) => {
 
       // Then load the image
       try {
-        const image = await ImagesService.getImage(design.imageId);
+        const image = await apiClient.get<{ url: string }>(
+          `/images/${design.imageId}`
+        );
         set({ imageUrl: image.url });
         console.log("Image loaded:", image.url);
       } catch (imageError) {
@@ -187,7 +220,9 @@ export const useDesignStore = create<DesignState>((set, get) => {
       // If there's a logo, try to load it too
       if (design.logoId) {
         try {
-          const logo = await LogosService.getLogo(design.logoId);
+          const logo = await apiClient.get<{ url: string }>(
+            `/logos/${design.logoId}`
+          );
           // If you have a state property for logo URL, set it here
           console.log("Logo loaded:", logo.url);
         } catch (logoError) {
@@ -359,18 +394,18 @@ export const useDesignStore = create<DesignState>((set, get) => {
         // If we have a current design ID, update it; otherwise create a new one
         if (state.currentDesignId) {
           try {
-            const existingDesign = await DesignsService.getDesign(
-              state.currentDesignId
+            const existingDesign = await apiClient.get(
+              `/designs/${state.currentDesignId}`
             );
 
             if (existingDesign) {
-              savedDesign = await DesignsService.updateDesign(
-                state.currentDesignId,
+              savedDesign = await apiClient.put(
+                `/designs/${state.currentDesignId}`,
                 designData
               );
               console.log("Design updated successfully:", savedDesign.id);
             } else {
-              savedDesign = await DesignsService.createDesign(designData);
+              savedDesign = await apiClient.post("/designs", designData);
               console.log(
                 "Design created successfully (previous design not found):",
                 savedDesign.id
@@ -381,11 +416,11 @@ export const useDesignStore = create<DesignState>((set, get) => {
               "Error updating design, creating new one instead:",
               error
             );
-            savedDesign = await DesignsService.createDesign(designData);
+            savedDesign = await apiClient.post("/designs", designData);
             console.log("New design created as fallback:", savedDesign.id);
           }
         } else {
-          savedDesign = await DesignsService.createDesign(designData);
+          savedDesign = await apiClient.post("/designs", designData);
           console.log("New design created:", savedDesign.id);
         }
 
@@ -475,7 +510,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
         }
 
         // Otherwise, fetch it from the API
-        const design = await DesignsService.getDesign(designId);
+        const design = await apiClient.get<Design>(`/designs/${designId}`);
 
         if (!design) {
           throw new Error("Design not found");
@@ -512,7 +547,7 @@ export const useDesignStore = create<DesignState>((set, get) => {
           }
         } else {
           // For database designs, use the regular delete endpoint
-          await DesignsService.deleteDesign(designId);
+          await apiClient.delete(`/designs/${designId}`);
         }
 
         // Update local state
